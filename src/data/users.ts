@@ -1,0 +1,55 @@
+﻿import type { Profile } from '@/types';
+
+export const users: Profile[] = [
+  {
+    id: 'user-superadmin',
+    fullName: 'Apotre Jean-Claude Mufungizi',
+    email: 'superadmin@ecnd.org',
+    phone: '+243 990 000 001',
+    role: 'superadmin',
+    branchId: 'branch-goma',
+    departmentIds: ['dep-coordination', 'dep-tresorerie'],
+    title: 'Super Administrateur',
+  },
+  {
+    id: 'user-admin-goma',
+    fullName: 'Admin Esther Bahati',
+    email: 'admin.goma@ecnd.org',
+    phone: '+243 990 000 002',
+    role: 'admin',
+    branchId: 'branch-goma',
+    departmentIds: ['dep-coordination'],
+    title: 'Administrateur Goma',
+  },
+  {
+    id: 'user-manager-musique',
+    fullName: 'Samuel Kizito',
+    email: 'manager.musique@ecnd.org',
+    phone: '+243 990 000 003',
+    role: 'department_manager',
+    branchId: 'branch-goma',
+    departmentIds: ['dep-musique'],
+    title: 'Responsable Musique',
+  },
+  {
+    id: 'user-member-musique',
+    fullName: 'Ruth Ndaya',
+    email: 'member.musique@ecnd.org',
+    phone: '+243 990 000 004',
+    role: 'department_member',
+    branchId: 'branch-goma',
+    departmentIds: ['dep-musique'],
+    title: 'Membre Musique',
+  },
+  {
+    id: 'user-admin-lub',
+    fullName: 'Admin Elie Mwamba',
+    email: 'admin.lub@ecnd.org',
+    phone: '+243 990 000 005',
+    role: 'admin',
+    branchId: 'branch-lubumbashi',
+    departmentIds: ['dep-caisse'],
+    title: 'Administrateur Lubumbashi',
+  },
+];
+
