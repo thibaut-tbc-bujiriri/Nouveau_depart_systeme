@@ -8,7 +8,8 @@ import { useEventsData } from '@/hooks/useEventsData';
 import type { Event } from '@/types';
 import { formatDate } from '@/utils/format';
 import { restrictEventsByRole } from '@/utils/permissions';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 interface EventFormState {
   branchId: string;
@@ -32,9 +33,11 @@ const initialForm: EventFormState = {
 
 export function EventsPage() {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { branches } = useBranches();
   const { departments } = useDepartments();
-  const { events, isLoading, isMutating, error, source, createEvent, updateEvent, deleteEvent } = useEventsData();
+  const { events, isLoading, isMutating, error, createEvent, updateEvent, deleteEvent } = useEventsData();
   const [query, setQuery] = useState('');
   const [form, setForm] = useState<EventFormState>(initialForm);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -70,6 +73,13 @@ export function EventsPage() {
     });
     setIsModalOpen(true);
   };
+
+  useEffect(() => {
+    if (location.state && typeof location.state === 'object' && 'openCreate' in location.state && location.state.openCreate) {
+      openCreateModal();
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   const openEditModal = (event: Event) => {
     setEditingId(event.id);
@@ -118,6 +128,16 @@ export function EventsPage() {
     }
   };
 
+  const getStatusLabel = (status: Event['status']) => {
+    if (status === 'draft') {
+      return 'Brouillon';
+    }
+    if (status === 'completed') {
+      return 'Termine';
+    }
+    return 'Planifie';
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -131,7 +151,7 @@ export function EventsPage() {
       {error ? (
         <EmptyState
           title="Donnees evenements partielles"
-          description={`Mode ${source === 'mock' ? 'fallback mock' : 'supabase'}: ${error}`}
+          description={error}
         />
       ) : null}
 
@@ -155,7 +175,7 @@ export function EventsPage() {
               label: 'Statut',
               render: (event) => (
                 <span className={event.status === 'scheduled' ? 'text-emerald-600' : 'text-slate-600'}>
-                  {event.status}
+                  {getStatusLabel(event.status)}
                 </span>
               ),
             },
@@ -254,6 +274,12 @@ export function EventsPage() {
               ))}
             </AppSelect>
           </FormFieldWrapper>
+
+          {error ? (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {error}
+            </div>
+          ) : null}
 
           <div className="flex justify-end gap-2">
             <AppButton variant="secondary" onClick={() => setIsModalOpen(false)}>

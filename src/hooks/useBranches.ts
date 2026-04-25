@@ -1,4 +1,3 @@
-import { branches as mockBranches } from '@/data';
 import {
   createBranch,
   deleteBranch,
@@ -9,12 +8,27 @@ import {
 import type { Branch } from '@/types';
 import { useCallback, useEffect, useState } from 'react';
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim().length > 0) {
+      return message;
+    }
+  }
+
+  return fallback;
+}
+
 export function useBranches() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<'supabase' | 'mock'>('supabase');
+  const source = 'supabase' as const;
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -23,11 +37,9 @@ export function useBranches() {
     try {
       const rows = await getBranches();
       setBranches(rows);
-      setSource('supabase');
     } catch (err) {
-      setBranches(mockBranches);
-      setSource('mock');
-      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des extensions.');
+      setBranches([]);
+      setError(getErrorMessage(err, 'Erreur lors du chargement des extensions.'));
     } finally {
       setIsLoading(false);
     }
@@ -46,7 +58,7 @@ export function useBranches() {
         await load();
         return true;
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Operation impossible.');
+        setError(getErrorMessage(err, 'Operation impossible.'));
         return false;
       } finally {
         setIsMutating(false);

@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabaseClient';
 import { mapDepartmentRowToDepartment } from '@/services/mappers';
 import type { DepartmentRow } from '@/services/types';
 import type { Department } from '@/types';

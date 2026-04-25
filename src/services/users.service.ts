@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabaseClient';
 import type { DepartmentRow, ProfileRow } from '@/services/types';
 import type { Branch, Role } from '@/types';
 
@@ -22,6 +22,11 @@ async function getMembershipColumn(): Promise<MembershipColumn> {
   }
 
   return 'user_id';
+}
+
+async function hasRoleInDepartmentColumn(): Promise<boolean> {
+  const probe = await supabase.from('department_members').select('role_in_department').limit(1);
+  return !probe.error;
 }
 
 export async function getManagedUsers() {
@@ -106,6 +111,12 @@ export async function updateUserAccess(
     departmentIds: string[];
   },
 ) {
+  if (payload.role === 'superadmin') {
+    if (!payload.branchId) {
+      throw new Error('Le super admin doit avoir une extension de residence.');
+    }
+  }
+
   const { error: updateProfileError } = await supabase
     .from('profiles')
     .update({
@@ -119,6 +130,7 @@ export async function updateUserAccess(
   }
 
   const membershipColumn = await getMembershipColumn();
+  const includeRoleInDepartment = await hasRoleInDepartmentColumn();
 
   const { error: deleteRelationsError } = await supabase
     .from('department_members')
@@ -133,14 +145,160 @@ export async function updateUserAccess(
     return;
   }
 
-  const relations = payload.departmentIds.map((departmentId) => ({
-    department_id: departmentId,
-    [membershipColumn]: userId,
-    role_in_department: payload.role === 'department_manager' ? 'department_manager' : 'department_member',
-  }));
+  const relations = payload.departmentIds.map((departmentId) => {
+    const baseRelation: Record<string, string> = {
+      department_id: departmentId,
+      [membershipColumn]: userId,
+    };
+
+    if (includeRoleInDepartment) {
+      baseRelation.role_in_department = payload.role === 'department_manager' ? 'department_manager' : 'department_member';
+    }
+
+    return baseRelation;
+  });
 
   const { error: insertRelationsError } = await supabase.from('department_members').insert(relations);
   if (insertRelationsError) {
     throw insertRelationsError;
+  }
+}
+
+export async function deleteManagedUser(userId: string) {
+  const membershipColumn = await getMembershipColumn();
+
+  const { error: deleteRelationsError } = await supabase
+    .from('department_members')
+    .delete()
+    .eq(membershipColumn, userId);
+
+  if (deleteRelationsError) {
+    throw deleteRelationsError;
+  }
+
+  const { error: deleteProfileError } = await supabase.from('profiles').delete().eq('id', userId);
+  if (deleteProfileError) {
+    throw deleteProfileError;
+  }
+}
+
+export async function updateManagedUserPassword(payload: { userId: string; password: string }) {
+  const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string }>('admin-set-user-password', {
+    body: {
+      userId: payload.userId,
+      password: payload.password,
+    },
+  });
+
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    if (context) {
+      try {
+        const rawBody = await context.clone().text();
+        try {
+          const body = JSON.parse(rawBody) as { error?: string; message?: string };
+          throw new Error(body.error || body.message || error.message);
+        } catch {
+          throw new Error(rawBody || `${error.message} (HTTP ${context.status})`);
+        }
+      } catch {
+        throw new Error(`${error.message} (HTTP ${context.status})`);
+      }
+    }
+
+    throw error;
+  }
+
+  if (!data?.success) {
+    throw new Error(data?.error || 'La fonction admin-set-user-password a repondu sans confirmer la mise a jour.');
+  }
+}
+
+export async function createManagedUser(payload: {
+  fullName: string;
+  email: string;
+  password: string;
+  role: Role;
+  branchId: string;
+  departmentIds: string[];
+}) {
+  const normalizedEmail = payload.email.trim().toLowerCase();
+
+  const { data: existingProfile, error: existingProfileError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('email', normalizedEmail)
+    .maybeSingle();
+
+  if (existingProfileError) {
+    throw existingProfileError;
+  }
+
+  if (existingProfile?.id) {
+    throw new Error('Cet email est deja utilise par un utilisateur.');
+  }
+
+  const { data: existingSessionData } = await supabase.auth.getSession();
+  const previousSession = existingSessionData.session;
+
+  const { data: authData, error: signUpError } = await supabase.auth.signUp({
+    email: normalizedEmail,
+    password: payload.password,
+    options: {
+      data: {
+        full_name: payload.fullName,
+      },
+    },
+  });
+
+  if (signUpError) {
+    throw signUpError;
+  }
+
+  const authUser = authData.user;
+  const userId = authUser?.id;
+  if (!userId) {
+    throw new Error("Impossible de creer l'utilisateur dans Auth.");
+  }
+
+  if (authUser.identities && authUser.identities.length === 0) {
+    throw new Error('Cet email existe deja dans Auth. Utilisez un autre email.');
+  }
+
+  const { error: profileError } = await supabase.from('profiles').upsert(
+    {
+      id: userId,
+      full_name: payload.fullName,
+      email: normalizedEmail,
+      role: payload.role,
+      branch_id: payload.branchId || null,
+      status: 'active',
+    },
+    { onConflict: 'id' },
+  );
+
+  if (profileError) {
+    throw profileError;
+  }
+
+  await updateUserAccess(userId, {
+    role: payload.role,
+    branchId: payload.branchId,
+    departmentIds: payload.departmentIds,
+  });
+
+  if (!previousSession) {
+    return;
+  }
+
+  const { data: activeSessionData } = await supabase.auth.getSession();
+  const activeSessionUserId = activeSessionData.session?.user?.id;
+  const previousSessionUserId = previousSession.user.id;
+
+  if (activeSessionUserId && activeSessionUserId !== previousSessionUserId) {
+    await supabase.auth.setSession({
+      access_token: previousSession.access_token,
+      refresh_token: previousSession.refresh_token,
+    });
   }
 }

@@ -2,6 +2,11 @@
 import type { BranchRow, ChurchMemberRow, DepartmentRow, ProfileRow } from '@/services/types';
 
 export function mapProfileRowToProfile(row: ProfileRow, departmentIds: string[]): Profile {
+  const metadataTitle =
+    row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
+      ? row.metadata.title
+      : undefined;
+
   return {
     id: row.id,
     fullName: row.full_name ?? 'Utilisateur ECND',
@@ -11,7 +16,7 @@ export function mapProfileRowToProfile(row: ProfileRow, departmentIds: string[])
     branchId: row.branch_id ?? '',
     departmentIds,
     avatarUrl: row.avatar_url ?? undefined,
-    title: row.title ?? undefined,
+    title: row.title ?? (typeof metadataTitle === 'string' ? metadataTitle : undefined),
   };
 }
 

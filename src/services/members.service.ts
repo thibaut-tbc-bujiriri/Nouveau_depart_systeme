@@ -1,7 +1,31 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabaseClient';
 import { mapChurchMemberRowToMember } from '@/services/mappers';
 import type { ChurchMemberDepartmentRow, ChurchMemberRow } from '@/services/types';
 import type { ChurchMember } from '@/types';
+
+function normalizePhone(phone: string): string {
+  // Keep only digits to stay compatible with numeric/text schemas.
+  return phone.replace(/\D/g, '');
+}
+
+function toSupabaseMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === 'object' && error !== null) {
+    const candidate = error as { message?: unknown; details?: unknown; hint?: unknown };
+    const message = typeof candidate.message === 'string' ? candidate.message : '';
+    const details = typeof candidate.details === 'string' ? candidate.details : '';
+    const hint = typeof candidate.hint === 'string' ? candidate.hint : '';
+    const full = [message, details, hint].filter(Boolean).join(' - ');
+    if (full) {
+      return full;
+    }
+  }
+
+  return fallback;
+}
 
 export interface MemberUpsertInput {
   branchId: string;
@@ -14,6 +38,8 @@ export interface MemberUpsertInput {
   status: ChurchMember['status'];
   departmentIds: string[];
 }
+
+type MembersWriteAction = 'create' | 'update' | 'delete';
 
 export async function getMembers(): Promise<ChurchMember[]> {
   const { data: rows, error } = await supabase.from('church_members').select('*').order('created_at', { ascending: false });
@@ -37,84 +63,47 @@ export async function getMembers(): Promise<ChurchMember[]> {
 }
 
 export async function createMember(payload: MemberUpsertInput): Promise<void> {
-  const { data, error } = await supabase
-    .from('church_members')
-    .insert({
-      branch_id: payload.branchId,
-      first_name: payload.firstName,
-      last_name: payload.lastName,
-      gender: payload.gender,
-      phone: payload.phone,
-      email: payload.email || null,
-      joined_at: payload.joinedAt,
-      status: payload.status,
-    })
-    .select('id')
-    .single();
-
-  if (error || !data) {
-    throw error ?? new Error('Impossible de creer le membre.');
-  }
-
-  if (payload.departmentIds.length > 0) {
-    const linkRows = payload.departmentIds.map((departmentId) => ({
-      church_member_id: data.id,
-      department_id: departmentId,
-    }));
-
-    const { error: linkError } = await supabase.from('church_member_departments').insert(linkRows);
-    if (linkError) {
-      throw linkError;
-    }
-  }
+  await invokeMembersWrite('create', { payload: { ...payload, phone: normalizePhone(payload.phone) } });
 }
 
 export async function updateMember(memberId: string, payload: MemberUpsertInput): Promise<void> {
-  const { error } = await supabase
-    .from('church_members')
-    .update({
-      branch_id: payload.branchId,
-      first_name: payload.firstName,
-      last_name: payload.lastName,
-      gender: payload.gender,
-      phone: payload.phone,
-      email: payload.email || null,
-      joined_at: payload.joinedAt,
-      status: payload.status,
-    })
-    .eq('id', memberId);
-
-  if (error) {
-    throw error;
-  }
-
-  const { error: deleteLinkError } = await supabase
-    .from('church_member_departments')
-    .delete()
-    .eq('church_member_id', memberId);
-
-  if (deleteLinkError) {
-    throw deleteLinkError;
-  }
-
-  if (payload.departmentIds.length > 0) {
-    const linkRows = payload.departmentIds.map((departmentId) => ({
-      church_member_id: memberId,
-      department_id: departmentId,
-    }));
-
-    const { error: insertLinkError } = await supabase.from('church_member_departments').insert(linkRows);
-
-    if (insertLinkError) {
-      throw insertLinkError;
-    }
-  }
+  await invokeMembersWrite('update', {
+    memberId,
+    payload: { ...payload, phone: normalizePhone(payload.phone) },
+  });
 }
 
 export async function deleteMember(memberId: string): Promise<void> {
-  const { error } = await supabase.from('church_members').delete().eq('id', memberId);
+  await invokeMembersWrite('delete', { memberId });
+}
+
+async function invokeMembersWrite(
+  action: MembersWriteAction,
+  body: { memberId?: string; payload?: MemberUpsertInput },
+): Promise<void> {
+  const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string }>('members-write', {
+    body: {
+      action,
+      ...body,
+    },
+  });
 
   if (error) {
-    throw error;
+    const context = (error as { context?: Response }).context;
+    if (context) {
+      const raw = await context.clone().text().catch(() => '');
+      try {
+        const parsed = JSON.parse(raw) as { error?: string; message?: string };
+        throw new Error(parsed.error || parsed.message || `${error.message} (HTTP ${context.status})`);
+      } catch {
+        throw new Error(raw || `${error.message} (HTTP ${context.status})`);
+      }
+    }
+
+    throw new Error(toSupabaseMessage(error, 'Operation membres impossible.'));
+  }
+
+  if (!data?.success) {
+    throw new Error(data?.error || 'Operation membres non confirmee par le serveur.');
   }
 }

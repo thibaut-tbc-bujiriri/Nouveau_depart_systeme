@@ -1,4 +1,3 @@
-import { services as mockServices } from '@/data';
 import { createService, deleteService, getServices, type ServiceUpsertInput, updateService } from '@/services/services.service';
 import { pickNumber, pickString } from '@/services/normalizers';
 import type { Service } from '@/types';
@@ -19,7 +18,21 @@ export function normalizeServiceRow(row: Record<string, unknown>): Service {
     startTime: pickString(row, ['start_time', 'startTime'], '--:--'),
     endTime: pickString(row, ['end_time', 'endTime'], '--:--'),
     preacher: pickString(row, ['preacher', 'speaker'], 'N/A'),
-    attendance: pickNumber(row, ['attendance', 'participants_count'], 0),
+    attendance: pickNumber(
+      row,
+      [
+        'actual_attendance',
+        'expected_attendance',
+        'attendance',
+        'participants_count',
+        'participants',
+        'attendance_count',
+        'participant_count',
+        'frequentation',
+        'frequency',
+      ],
+      0,
+    ),
     type,
   };
 }
@@ -29,7 +42,7 @@ export function useServicesData() {
   const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<'supabase' | 'mock'>('supabase');
+  const source = 'supabase' as const;
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -38,10 +51,8 @@ export function useServicesData() {
     try {
       const rows = await getServices();
       setServices((rows as Record<string, unknown>[]).map(normalizeServiceRow));
-      setSource('supabase');
     } catch (err) {
-      setServices(mockServices);
-      setSource('mock');
+      setServices([]);
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des services.');
     } finally {
       setIsLoading(false);

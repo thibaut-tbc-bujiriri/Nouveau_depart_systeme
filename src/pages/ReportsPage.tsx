@@ -7,7 +7,8 @@ import { useReportsData } from '@/hooks/useReportsData';
 import type { Report } from '@/types';
 import { formatDate } from '@/utils/format';
 import { restrictReportsByRole } from '@/utils/permissions';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 interface ReportFormState {
   branchId: string;
@@ -29,8 +30,10 @@ const initialForm: ReportFormState = {
 
 export function ReportsPage() {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { branches } = useBranches();
-  const { reports, isLoading, isMutating, error, source, createReport, updateReport, deleteReport } = useReportsData();
+  const { reports, isLoading, isMutating, error, createReport, updateReport, deleteReport } = useReportsData();
   const [query, setQuery] = useState('');
   const [form, setForm] = useState<ReportFormState>(initialForm);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -67,6 +70,13 @@ export function ReportsPage() {
     setIsModalOpen(true);
   };
 
+  useEffect(() => {
+    if (location.state && typeof location.state === 'object' && 'openCreate' in location.state && location.state.openCreate) {
+      openCreateModal();
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.pathname, location.state, navigate]);
+
   const openEditModal = (report: Report) => {
     setEditingId(report.id);
     setForm({
@@ -85,8 +95,14 @@ export function ReportsPage() {
       return;
     }
 
+    const resolvedDepartmentId =
+      user.role === 'department_manager' || user.role === 'department_member'
+        ? (user.departmentIds[0] ?? undefined)
+        : undefined;
+
     const payload = {
       branchId: form.branchId,
+      departmentId: resolvedDepartmentId,
       title: form.title,
       type: form.type,
       period: form.period,
@@ -125,7 +141,7 @@ export function ReportsPage() {
       {error ? (
         <EmptyState
           title="Donnees rapports partielles"
-          description={`Mode ${source === 'mock' ? 'fallback mock' : 'supabase'}: ${error}`}
+          description={error}
         />
       ) : null}
 
@@ -216,6 +232,12 @@ export function ReportsPage() {
               onChange={(event) => setForm((prev) => ({ ...prev, summary: event.target.value }))}
             />
           </FormFieldWrapper>
+
+          {error ? (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {error}
+            </div>
+          ) : null}
 
           <div className="flex justify-end gap-2">
             <AppButton variant="secondary" onClick={() => setIsModalOpen(false)}>

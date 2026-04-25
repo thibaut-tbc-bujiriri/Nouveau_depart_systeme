@@ -1,8 +1,6 @@
 import { DataTable, DepartmentBadge, EmptyState, LoadingState, PageHeader } from '@/components/common';
 import { AppButton, AppInput, AppSelect, FormFieldWrapper, SearchInput } from '@/components/ui';
 import { ConfirmDialog, Modal } from '@/components/ui/Modal';
-import { userDepartmentRelations } from '@/data';
-import { getScopedDepartmentsByRole } from '@/features/departments/lib/departmentSelectors';
 import { useAuth } from '@/hooks/useAuth';
 import { toBaseDepartment, useDepartments } from '@/hooks/useDepartments';
 import { useBranches } from '@/hooks/useBranches';
@@ -69,11 +67,19 @@ export function DepartmentsPage() {
       return [];
     }
 
-    return getScopedDepartmentsByRole({
-      departments: departments.map(toBaseDepartment),
-      user,
-      relations: userDepartmentRelations,
-    }).map((department) => departments.find((item) => item.id === department.id) ?? { ...department, responsibleName: undefined });
+    const all = departments.map(toBaseDepartment);
+
+    if (user.role === 'superadmin') {
+      return departments;
+    }
+
+    if (user.role === 'admin') {
+      return departments.filter((department) => department.branchId === user.branchId);
+    }
+
+    return all
+      .filter((department) => user.departmentIds.includes(department.id))
+      .map((department) => departments.find((item) => item.id === department.id) ?? { ...department, responsibleName: undefined });
   }, [departments, user]);
 
   const filtered = useMemo(() => {
@@ -86,6 +92,14 @@ export function DepartmentsPage() {
       [department.name, branchMap.get(department.branchId) ?? ''].join(' ').toLowerCase().includes(normalized),
     );
   }, [branchMap, query, scopedDepartments]);
+
+  const responsibleOptions = useMemo(() => {
+    if (!form.branchId) {
+      return users;
+    }
+
+    return users.filter((profile) => profile.branchId === form.branchId || !profile.branchId);
+  }, [form.branchId, users]);
 
   const resetForm = () => {
     setForm({
@@ -254,13 +268,11 @@ export function DepartmentsPage() {
           <FormFieldWrapper label="Responsable">
             <AppSelect value={form.managerId} onChange={(event) => setForm((prev) => ({ ...prev, managerId: event.target.value }))}>
               <option value="">Aucun</option>
-              {users
-                .filter((profile) => (form.branchId ? profile.branchId === form.branchId : true))
-                .map((profile) => (
-                  <option key={profile.id} value={profile.id}>
-                    {profile.fullName}
-                  </option>
-                ))}
+              {responsibleOptions.map((profile) => (
+                <option key={profile.id} value={profile.id}>
+                  {profile.fullName}
+                </option>
+              ))}
             </AppSelect>
           </FormFieldWrapper>
 

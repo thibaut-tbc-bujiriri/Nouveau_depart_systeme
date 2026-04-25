@@ -1,5 +1,5 @@
 ﻿import { DataTable, EmptyState, LoadingState, PageHeader, StatCard } from '@/components/common';
-import { reports } from '@/data';
+import { useReportsData } from '@/hooks/useReportsData';
 import { useAuth } from '@/hooks/useAuth';
 import { useBranches } from '@/hooks/useBranches';
 import { useDepartments } from '@/hooks/useDepartments';
@@ -13,11 +13,12 @@ export function DepartmentDetailsPage() {
   const { user } = useAuth();
   const { departments, isLoading: departmentsLoading } = useDepartments();
   const { members, isLoading: membersLoading } = useMembers();
+  const { reports, isLoading: reportsLoading } = useReportsData();
   const { branches } = useBranches();
 
   const department = useMemo(() => departments.find((item) => item.id === id), [departments, id]);
 
-  if (departmentsLoading || membersLoading) {
+  if (departmentsLoading || membersLoading || reportsLoading) {
     return <LoadingState message="Chargement du departement..." />;
   }
 
@@ -45,7 +46,7 @@ export function DepartmentDetailsPage() {
         },
       ]
     : [];
-  const departmentReports = reports.filter((report) => report.type === 'department');
+  const departmentReports = reports.filter((report) => report.type === 'department' && report.branchId === department.branchId);
 
   return (
     <div className="space-y-6">

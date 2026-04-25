@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabaseClient';
 import { mapBranchRowToBranch } from '@/services/mappers';
 import type { BranchRow } from '@/services/types';
 import type { Branch } from '@/types';
@@ -23,6 +23,7 @@ export async function getBranches(): Promise<Branch[]> {
   }
 
   const { data: membersRows } = await supabase.from('church_members').select('branch_id');
+  const { data: profileRows } = await supabase.from('profiles').select('branch_id, role');
   const { data: departmentsRows } = await supabase.from('departments').select('branch_id');
 
   const memberCountByBranch = (membersRows ?? []).reduce<Record<string, number>>((acc, item) => {
@@ -30,6 +31,24 @@ export async function getBranches(): Promise<Branch[]> {
     acc[branchId] = (acc[branchId] ?? 0) + 1;
     return acc;
   }, {});
+
+  const profileCountByBranch = (profileRows ?? []).reduce<Record<string, number>>((acc, item) => {
+    const profile = item as { branch_id: string | null; role?: string | null };
+    if (!profile.branch_id) {
+      return acc;
+    }
+    if ((profile.role ?? '').toLowerCase() === 'superadmin') {
+      return acc;
+    }
+    acc[profile.branch_id] = (acc[profile.branch_id] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  for (const [branchId, profileCount] of Object.entries(profileCountByBranch)) {
+    if (!memberCountByBranch[branchId]) {
+      memberCountByBranch[branchId] = profileCount;
+    }
+  }
 
   const departmentCountByBranch = (departmentsRows ?? []).reduce<Record<string, number>>((acc, item) => {
     const branchId = (item as { branch_id: string }).branch_id;

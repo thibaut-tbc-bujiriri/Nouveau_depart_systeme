@@ -20,13 +20,78 @@ interface AuthState {
 
 async function resolveProfileFromSession(session: Session | null) {
   if (!session?.user) {
+    return { profile: null, fetchError: null as string | null };
+  }
+
+  try {
+    const profile = await getCurrentProfile(session.user.id);
+    return { profile, fetchError: null as string | null };
+  } catch (error) {
+    return {
+      profile: null,
+      fetchError: error instanceof Error ? error.message : 'Erreur de connexion au serveur.',
+    };
+  }
+}
+
+function resolveAuthError({
+  hasSessionUser,
+  profile,
+  fetchError,
+  fallbackMissingProfileMessage,
+}: {
+  hasSessionUser: boolean;
+  profile: Profile | null;
+  fetchError: string | null;
+  fallbackMissingProfileMessage: string;
+}) {
+  if (!hasSessionUser) {
     return null;
   }
 
-  return getCurrentProfile(session.user.id);
+  if (fetchError) {
+    return 'Connexion au serveur impossible. Verifiez internet puis reessayez.';
+  }
+
+  if (!profile) {
+    return fallbackMissingProfileMessage;
+  }
+
+  return null;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+function toUserFacingAuthErrorMessage(error: unknown) {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+      ? error
+      : typeof error === 'object' && error !== null && 'message' in error
+      ? String((error as { message?: unknown }).message ?? '')
+      : String(error ?? '');
+  const normalized = raw.toLowerCase();
+
+  if (
+    normalized.includes('failed to fetch') ||
+    normalized.includes('network') ||
+    normalized.includes('timed out') ||
+    normalized.includes('connection')
+  ) {
+    return 'Connexion au serveur impossible. Verifiez internet puis reessayez.';
+  }
+
+  if (normalized.includes('invalid login credentials') || normalized.includes('invalid_credentials')) {
+    return 'Connexion refusee. Verifiez email/mot de passe, ou confirmez l email si la confirmation est active.';
+  }
+
+  if (normalized.includes('email not confirmed')) {
+    return 'Connexion refusee: email non confirme. Ouvrez votre boite mail et confirmez le compte.';
+  }
+
+  return raw || 'Une erreur est survenue pendant la connexion.';
+}
+
+export const useAuthStore = create<AuthState>((set, get) => ({
   profile: null,
   authUser: null,
   session: null,
@@ -51,7 +116,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     const session = data.session;
-    const profile = await resolveProfileFromSession(session);
+    const { profile, fetchError } = await resolveProfileFromSession(session);
 
     set({
       session,
@@ -59,7 +124,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       profile,
       isAuthenticated: Boolean(session?.user),
       isLoading: false,
-      error: session?.user && !profile ? 'Profil introuvable pour cet utilisateur.' : null,
+      error: resolveAuthError({
+        hasSessionUser: Boolean(session?.user),
+        profile,
+        fetchError,
+        fallbackMissingProfileMessage: 'Profil introuvable pour cet utilisateur.',
+      }),
     });
   },
   refreshFromSession: async (session) => {
@@ -75,8 +145,14 @@ export const useAuthStore = create<AuthState>((set) => ({
       return;
     }
 
-    set({ isLoading: true, error: null });
-    const profile = await resolveProfileFromSession(session);
+    const state = get();
+    const isSameUser = state.authUser?.id === session.user.id;
+    const shouldKeepUiStable = state.isAuthenticated && Boolean(state.profile) && isSameUser;
+
+    if (!shouldKeepUiStable) {
+      set({ isLoading: true, error: null });
+    }
+    const { profile, fetchError } = await resolveProfileFromSession(session);
 
     set({
       session,
@@ -84,31 +160,56 @@ export const useAuthStore = create<AuthState>((set) => ({
       profile,
       isAuthenticated: true,
       isLoading: false,
-      error: profile ? null : 'Profil introuvable pour cet utilisateur.',
+      error: resolveAuthError({
+        hasSessionUser: true,
+        profile,
+        fetchError,
+        fallbackMissingProfileMessage: 'Profil introuvable pour cet utilisateur.',
+      }),
     });
   },
   login: async (email, password) => {
     set({ isLoading: true, error: null });
-    const { data, error } = await signInWithPassword(email, password);
+    try {
+      const { data, error } = await signInWithPassword(email, password);
 
-    if (error) {
-      set({ isLoading: false, error: error.message });
-      return { error: error.message };
+      if (error) {
+        const safeError = toUserFacingAuthErrorMessage(error);
+        set({ isLoading: false, error: safeError });
+        return { error: safeError };
+      }
+
+      const session = data.session;
+      const { profile, fetchError } = await resolveProfileFromSession(session);
+      const resolvedError = resolveAuthError({
+        hasSessionUser: Boolean(data.user),
+        profile,
+        fetchError,
+        fallbackMissingProfileMessage: 'Connexion reussie, mais profil introuvable.',
+      });
+
+      set({
+        session,
+        authUser: data.user,
+        profile,
+        isAuthenticated: Boolean(data.user),
+        isLoading: false,
+        error: resolvedError,
+      });
+
+      return { error: resolvedError };
+    } catch (error) {
+      const safeError = toUserFacingAuthErrorMessage(error);
+      set({
+        session: null,
+        authUser: null,
+        profile: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: safeError,
+      });
+      return { error: safeError };
     }
-
-    const session = data.session;
-    const profile = await resolveProfileFromSession(session);
-
-    set({
-      session,
-      authUser: data.user,
-      profile,
-      isAuthenticated: Boolean(data.user),
-      isLoading: false,
-      error: profile ? null : 'Connexion reussie, mais profil introuvable.',
-    });
-
-    return { error: profile ? null : 'Profil utilisateur non trouve.' };
   },
   logout: async () => {
     await signOut();

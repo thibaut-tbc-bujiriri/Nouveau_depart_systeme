@@ -1,4 +1,3 @@
-import { finances as mockFinances } from '@/data';
 import {
   createFinanceRecord,
   deleteFinanceRecord,
@@ -48,7 +47,7 @@ export function useFinancesData() {
   const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<'supabase' | 'mock'>('supabase');
+  const source = 'supabase' as const;
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -57,10 +56,8 @@ export function useFinancesData() {
     try {
       const rows = await getFinanceRecords();
       setFinances((rows as Record<string, unknown>[]).map(normalizeFinanceRow));
-      setSource('supabase');
     } catch (err) {
-      setFinances(mockFinances);
-      setSource('mock');
+      setFinances([]);
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des finances.');
     } finally {
       setIsLoading(false);

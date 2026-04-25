@@ -11,7 +11,12 @@ export function AppProviders() {
   useEffect(() => {
     void initializeAuth();
 
-    const { data: subscription } = onAuthStateChange((_event, session) => {
+    const { data: subscription } = onAuthStateChange((event, session) => {
+      // Ignore high-frequency token refresh events to prevent UI flicker/reload feeling.
+      if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+        return;
+      }
+
       void refreshFromSession(session);
     });
 

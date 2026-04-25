@@ -1,4 +1,3 @@
-import { reports as mockReports } from '@/data';
 import { createReport, deleteReport, getReports, type ReportUpsertInput, updateReport } from '@/services/reports.service';
 import { pickString } from '@/services/normalizers';
 import type { Report } from '@/types';
@@ -17,12 +16,12 @@ export function normalizeReportRow(row: Record<string, unknown>): Report {
 
   return {
     id: pickString(row, ['id']),
-    branchId: pickString(row, ['branch_id', 'branchId']),
-    title: pickString(row, ['title'], 'Rapport'),
+    branchId: pickString(row, ['branch_id', 'branchId', 'extension_id']),
+    title: pickString(row, ['title', 'name'], 'Rapport'),
     type,
-    period: pickString(row, ['period'], fallbackPeriod || 'Periode non definie'),
-    summary: pickString(row, ['summary', 'description'], '-'),
-    generatedAt: pickString(row, ['generated_at', 'created_at'], new Date().toISOString()),
+    period: pickString(row, ['period', 'period_label', 'reporting_period'], fallbackPeriod || 'Periode non definie'),
+    summary: pickString(row, ['summary', 'description', 'notes', 'content'], '-'),
+    generatedAt: pickString(row, ['generated_at', 'report_date', 'date', 'created_at'], new Date().toISOString()),
   };
 }
 
@@ -31,7 +30,7 @@ export function useReportsData() {
   const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<'supabase' | 'mock'>('supabase');
+  const source = 'supabase' as const;
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -40,10 +39,8 @@ export function useReportsData() {
     try {
       const rows = await getReports();
       setReports((rows as Record<string, unknown>[]).map(normalizeReportRow));
-      setSource('supabase');
     } catch (err) {
-      setReports(mockReports);
-      setSource('mock');
+      setReports([]);
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des rapports.');
     } finally {
       setIsLoading(false);

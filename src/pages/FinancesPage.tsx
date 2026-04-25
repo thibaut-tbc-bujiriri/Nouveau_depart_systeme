@@ -39,7 +39,6 @@ export function FinancesPage() {
     isLoading,
     isMutating,
     error,
-    source,
     createFinanceRecord,
     updateFinanceRecord,
     deleteFinanceRecord,
@@ -140,7 +139,7 @@ export function FinancesPage() {
       {error ? (
         <EmptyState
           title="Donnees financieres partielles"
-          description={`Mode ${source === 'mock' ? 'fallback mock' : 'supabase'}: ${error}`}
+          description={error}
         />
       ) : null}
 

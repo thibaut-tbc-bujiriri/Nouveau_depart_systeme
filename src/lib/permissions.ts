@@ -39,18 +39,7 @@ export const roleLabels: Record<Role, string> = {
 
 export const rolePermissions: RolePermissionMap = {
   superadmin: ALL_PERMISSIONS,
-  admin: [
-    'dashboard:view',
-    'members:view',
-    'departments:view',
-    'departments:manage',
-    'finances:view',
-    'services:view',
-    'events:view',
-    'reports:view',
-    'settings:view',
-    'profile:view',
-  ],
+  admin: ALL_PERMISSIONS,
   department_manager: [
     'dashboard:view',
     'members:view',
@@ -66,7 +55,7 @@ export const rolePermissions: RolePermissionMap = {
 
 export const roleAccessScope: Record<Role, AccessScope> = {
   superadmin: 'global',
-  admin: 'branch',
+  admin: 'global',
   department_manager: 'department',
   department_member: 'read_limited',
 };
@@ -112,7 +101,7 @@ const navItemPermissionMap: Record<NavItem['key'], Permission> = {
 };
 
 export const hasBranchAccess = (user: Profile, branchId: string) => {
-  if (user.role === 'superadmin') {
+  if (user.role === 'superadmin' || user.role === 'admin') {
     return true;
   }
 
@@ -132,7 +121,7 @@ export const hasDepartmentAccess = (user: Profile, departmentId: string) => {
 };
 
 export const restrictBranchesByRole = (items: Branch[], user: Profile) => {
-  if (user.role === 'superadmin') {
+  if (user.role === 'superadmin' || user.role === 'admin') {
     return items;
   }
 
@@ -145,9 +134,7 @@ export const restrictDepartmentsByRole = (
   relations?: UserDepartmentRelation[],
 ) => {
   if (user.role === 'superadmin' || user.role === 'admin') {
-    return items.filter((department) =>
-      user.role === 'superadmin' ? true : department.branchId === user.branchId,
-    );
+    return items;
   }
 
   if (relations) {
@@ -162,7 +149,7 @@ export const restrictDepartmentsByRole = (
 };
 
 export const restrictFinancesByRole = (items: FinanceRecord[], user: Profile) => {
-  if (user.role === 'superadmin') {
+  if (user.role === 'superadmin' || user.role === 'admin') {
     return items;
   }
 
@@ -170,7 +157,7 @@ export const restrictFinancesByRole = (items: FinanceRecord[], user: Profile) =>
 };
 
 export const restrictEventsByRole = (items: Event[], user: Profile) => {
-  if (user.role === 'superadmin') {
+  if (user.role === 'superadmin' || user.role === 'admin') {
     return items;
   }
 
@@ -178,7 +165,7 @@ export const restrictEventsByRole = (items: Event[], user: Profile) => {
 };
 
 export const restrictReportsByRole = (items: Report[], user: Profile) => {
-  if (user.role === 'superadmin') {
+  if (user.role === 'superadmin' || user.role === 'admin') {
     return items;
   }
 

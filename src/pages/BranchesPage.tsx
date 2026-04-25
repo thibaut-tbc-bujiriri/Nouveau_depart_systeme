@@ -24,6 +24,17 @@ const initialBranchForm: BranchFormState = {
   isActive: true,
 };
 
+function buildBranchCode(name: string) {
+  const parts = name
+    .trim()
+    .split(/[\s\-_]+/)
+    .map((part) => part.replace(/[^a-zA-Z0-9]/g, ''))
+    .filter(Boolean);
+
+  const initials = parts.map((part) => part[0]?.toUpperCase() ?? '').join('');
+  return initials ? `ECND-${initials}` : 'ECND-';
+}
+
 export function BranchesPage() {
   const { user } = useAuth();
   const {
@@ -31,7 +42,6 @@ export function BranchesPage() {
     isLoading,
     isMutating,
     error,
-    source,
     createBranch,
     updateBranch,
     deleteBranch,
@@ -123,8 +133,8 @@ export function BranchesPage() {
 
       {error ? (
         <EmptyState
-          title="Connexion Supabase indisponible"
-          description={`Affichage en mode ${source === 'mock' ? 'mock' : 'fallback'}: ${error}`}
+          title={error.toLowerCase().includes('fetch') || error.toLowerCase().includes('network') ? 'Connexion Supabase indisponible' : 'Operation impossible'}
+          description={error}
         />
       ) : null}
 
@@ -185,10 +195,30 @@ export function BranchesPage() {
       >
         <div className="space-y-4">
           <FormFieldWrapper label="Code" required>
-            <AppInput value={form.code} onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value }))} />
+            <AppInput
+              value={form.code}
+              disabled
+              onChange={() => undefined}
+            />
           </FormFieldWrapper>
           <FormFieldWrapper label="Nom" required>
-            <AppInput value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
+            <AppInput
+              value={form.name}
+              onChange={(event) =>
+                setForm((prev) => {
+                  const nextName = event.target.value;
+                  if (editingId) {
+                    return { ...prev, name: nextName };
+                  }
+
+                  return {
+                    ...prev,
+                    name: nextName,
+                    code: buildBranchCode(nextName),
+                  };
+                })
+              }
+            />
           </FormFieldWrapper>
           <div className="grid gap-4 md:grid-cols-2">
             <FormFieldWrapper label="Ville" required>

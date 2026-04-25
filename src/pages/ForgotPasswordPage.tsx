@@ -1,10 +1,14 @@
-﻿import { AppButton, AppInput, FormFieldWrapper } from '@/components/ui';
+import { AppButton, AppInput, FormFieldWrapper } from '@/components/ui';
+import { resetPasswordForEmail } from '@/services/auth.service';
 import { CircleHelp, Lock, Mail, MailCheck } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 export function ForgotPasswordPage() {
   const [sent, setSent] = useState(false);
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
 
   return (
     <div className="space-y-5">
@@ -20,16 +24,27 @@ export function ForgotPasswordPage() {
             </div>
             <div>
               <p className="text-sm font-semibold text-emerald-800">Lien envoye</p>
-              <p className="mt-1 text-sm text-emerald-700">Un lien de reinitialisation a ete envoye (simulation frontend).</p>
+              <p className="mt-1 text-sm text-emerald-700">Un lien de reinitialisation a ete envoye a votre email.</p>
             </div>
           </div>
         </div>
       ) : (
         <form
           className="space-y-4"
-          onSubmit={(event) => {
+          onSubmit={async (event) => {
             event.preventDefault();
+            setError(null);
+            setIsSending(true);
+
+            const { error: resetError } = await resetPasswordForEmail(email);
+            if (resetError) {
+              setError(resetError.message);
+              setIsSending(false);
+              return;
+            }
+
             setSent(true);
+            setIsSending(false);
           }}
         >
           <FormFieldWrapper label="Adresse email" required>
@@ -39,11 +54,16 @@ export function ForgotPasswordPage() {
                 type="email"
                 placeholder="nom@ecnd.org"
                 required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
                 className="h-11 rounded-xl border-slate-300 bg-slate-50/50 pl-10 focus:bg-white"
               />
             </div>
           </FormFieldWrapper>
-          <AppButton type="submit" className="h-11 w-full rounded-xl bg-emerald-600 hover:bg-emerald-500">
+
+          {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+
+          <AppButton type="submit" isLoading={isSending} className="h-11 w-full rounded-xl bg-emerald-600 hover:bg-emerald-500">
             Envoyer le lien
           </AppButton>
         </form>
@@ -65,4 +85,3 @@ export function ForgotPasswordPage() {
     </div>
   );
 }
-

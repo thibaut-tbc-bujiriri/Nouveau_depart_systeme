@@ -33,7 +33,7 @@ const initialForm: ServiceFormState = {
 export function ServicesPage() {
   const { user } = useAuth();
   const { branches } = useBranches();
-  const { services, isLoading, isMutating, error, source, createService, updateService, deleteService } = useServicesData();
+  const { services, isLoading, isMutating, error, createService, updateService, deleteService } = useServicesData();
   const [query, setQuery] = useState('');
   const [form, setForm] = useState<ServiceFormState>(initialForm);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -134,7 +134,7 @@ export function ServicesPage() {
       {error ? (
         <EmptyState
           title="Donnees services partielles"
-          description={`Mode ${source === 'mock' ? 'fallback mock' : 'supabase'}: ${error}`}
+          description={error}
         />
       ) : null}
 
@@ -244,6 +244,12 @@ export function ServicesPage() {
               onChange={(event) => setForm((prev) => ({ ...prev, attendance: Number(event.target.value) || 0 }))}
             />
           </FormFieldWrapper>
+
+          {error ? (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {error}
+            </div>
+          ) : null}
 
           <div className="flex justify-end gap-2">
             <AppButton variant="secondary" onClick={() => setIsModalOpen(false)}>

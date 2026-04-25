@@ -112,12 +112,17 @@ export function MembersPage() {
       return;
     }
 
+    const normalizedPhone = form.phone.replace(/\D/g, '');
+    if (normalizedPhone.length < 7) {
+      return;
+    }
+
     const payload = {
       branchId: form.branchId,
       firstName: form.firstName,
       lastName: form.lastName,
       gender: form.gender,
-      phone: form.phone,
+      phone: normalizedPhone,
       email: form.email || undefined,
       status: form.status,
       joinedAt: form.joinedAt,

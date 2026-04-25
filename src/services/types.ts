@@ -9,6 +9,8 @@ export interface ProfileRow {
   branch_id: string | null;
   avatar_url: string | null;
   status: string | null;
+  metadata?: Record<string, unknown> | null;
+  last_sign_in_at?: string | null;
   title?: string | null;
 }
 

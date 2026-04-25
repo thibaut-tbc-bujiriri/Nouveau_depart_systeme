@@ -44,11 +44,11 @@ export function AppRouter() {
             <Route path="/reports" element={<ReportsPage />} />
           </Route>
 
-          <Route element={<RoleGuard allowedRoles={['superadmin']} requiredPermission="branches:view" />}>
+          <Route element={<RoleGuard allowedRoles={['superadmin', 'admin']} requiredPermission="branches:view" />}>
             <Route path="/branches" element={<BranchesPage />} />
           </Route>
 
-          <Route element={<RoleGuard allowedRoles={['superadmin']} requiredPermission="users:view" />}>
+          <Route element={<RoleGuard allowedRoles={['superadmin', 'admin']} requiredPermission="users:view" />}>
             <Route path="/users" element={<UsersPage />} />
           </Route>
 

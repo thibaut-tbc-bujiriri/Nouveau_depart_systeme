@@ -12,7 +12,6 @@
   UpcomingEventsCard,
   WeeklyProgramCard,
 } from '@/components/dashboard';
-import { departments } from '@/data';
 import { getSpiritualFocus, getWeeklyProgram } from '@/features/dashboard/lib/dashboardSelectors';
 import { type UseDashboardStatsResult } from '@/hooks/useDashboardStats';
 import type { Profile } from '@/types';
@@ -43,7 +42,6 @@ interface AdminDashboardProps {
 const colors = ['#0f766e', '#22c55e', '#f59e0b', '#94a3b8'];
 
 export function AdminDashboard({ user, dashboard }: AdminDashboardProps) {
-  const localDepartments = departments.filter((department) => department.branchId === user.branchId);
   const activeMembers = dashboard.counts.activeMembers;
   const newMembers = dashboard.counts.newMembers;
 
@@ -73,7 +71,7 @@ export function AdminDashboard({ user, dashboard }: AdminDashboardProps) {
         <AdvancedStatCard label="Nouveaux membres" value={String(newMembers)} subtitle="30 derniers jours" icon={UserPlus} trend={3.8} />
         <AdvancedStatCard label="Cultes cette semaine" value={String(dashboard.counts.servicesThisWeek)} subtitle="Programme local" icon={Church} trend={1.9} />
         <AdvancedStatCard label="Finances du mois" value={`${totalIncome - totalExpense} USD`} subtitle="Solde semestriel" icon={Wallet} trend={4.2} />
-        <AdvancedStatCard label="Departements actifs" value={String(localDepartments.filter((item) => item.isActive).length)} subtitle="Unites en service" icon={Landmark} trend={3.1} />
+        <AdvancedStatCard label="Departements actifs" value={String(dashboard.counts.activeDepartments)} subtitle="Unites en service" icon={Landmark} trend={3.1} />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-2">

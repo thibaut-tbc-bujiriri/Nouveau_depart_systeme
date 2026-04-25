@@ -1,14 +1,28 @@
-import { members as mockMembers } from '@/data';
 import { createMember, deleteMember, getMembers, type MemberUpsertInput, updateMember } from '@/services/members.service';
 import type { ChurchMember } from '@/types';
 import { useCallback, useEffect, useState } from 'react';
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim().length > 0) {
+      return message;
+    }
+  }
+
+  return fallback;
+}
 
 export function useMembers() {
   const [members, setMembers] = useState<ChurchMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<'supabase' | 'mock'>('supabase');
+  const source = 'supabase' as const;
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -17,11 +31,9 @@ export function useMembers() {
     try {
       const rows = await getMembers();
       setMembers(rows);
-      setSource('supabase');
     } catch (err) {
-      setMembers(mockMembers);
-      setSource('mock');
-      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des membres.');
+      setMembers([]);
+      setError(getErrorMessage(err, 'Erreur lors du chargement des membres.'));
     } finally {
       setIsLoading(false);
     }
@@ -40,7 +52,7 @@ export function useMembers() {
         await load();
         return true;
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Operation impossible.');
+        setError(getErrorMessage(err, 'Operation impossible.'));
         return false;
       } finally {
         setIsMutating(false);

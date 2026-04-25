@@ -14,7 +14,6 @@
   UpcomingEventsCard,
   WeeklyProgramCard,
 } from '@/components/dashboard';
-import { departments } from '@/data';
 import { getScopedKpis, getSpiritualFocus, getWeeklyProgram } from '@/features/dashboard/lib/dashboardSelectors';
 import { type UseDashboardStatsResult } from '@/hooks/useDashboardStats';
 import type { Profile } from '@/types';
@@ -56,7 +55,7 @@ export function SuperAdminDashboard({ user, dashboard }: SuperAdminDashboardProp
   const upcoming = dashboard.upcomingEvents.slice(0, 4);
   const performance = dashboard.departmentPerformance.slice(0, 4);
   const alerts = dashboard.openAlerts.slice(0, 3);
-  const kpis = getScopedKpis({ user, departments });
+  const kpis = getScopedKpis();
   const spiritual = getSpiritualFocus();
   const weeklyProgram = getWeeklyProgram();
 

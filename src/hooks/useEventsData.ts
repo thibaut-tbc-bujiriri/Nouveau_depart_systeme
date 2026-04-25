@@ -1,4 +1,3 @@
-import { events as mockEvents } from '@/data';
 import { createEvent, deleteEvent, getEvents, type EventUpsertInput, updateEvent } from '@/services/events.service';
 import { pickNullableString, pickNumber, pickString } from '@/services/normalizers';
 import type { Event } from '@/types';
@@ -16,7 +15,11 @@ export function normalizeEventRow(row: Record<string, unknown>): Event {
     location: pickString(row, ['location', 'venue'], '-'),
     organizerDepartmentId: pickNullableString(row, ['organizer_department_id', 'department_id', 'organizerDepartmentId']),
     status,
-    expectedParticipants: pickNumber(row, ['expected_participants', 'expectedParticipants', 'participants_count'], 0),
+    expectedParticipants: pickNumber(
+      row,
+      ['expected_participants', 'expectedParticipants', 'participants_count', 'expected_attendance', 'target_participants'],
+      0,
+    ),
   };
 }
 
@@ -25,7 +28,7 @@ export function useEventsData() {
   const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<'supabase' | 'mock'>('supabase');
+  const source = 'supabase' as const;
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -34,10 +37,8 @@ export function useEventsData() {
     try {
       const rows = await getEvents();
       setEvents((rows as Record<string, unknown>[]).map(normalizeEventRow));
-      setSource('supabase');
     } catch (err) {
-      setEvents(mockEvents);
-      setSource('mock');
+      setEvents([]);
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des evenements.');
     } finally {
       setIsLoading(false);

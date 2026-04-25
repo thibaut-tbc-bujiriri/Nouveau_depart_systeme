@@ -1,4 +1,3 @@
-import { branches as mockBranches, departments as mockDepartments } from '@/data';
 import {
   createDepartment,
   deleteDepartment,
@@ -15,7 +14,7 @@ export function useDepartments() {
   const [isLoading, setIsLoading] = useState(true);
   const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [source, setSource] = useState<'supabase' | 'mock'>('supabase');
+  const source = 'supabase' as const;
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -24,10 +23,8 @@ export function useDepartments() {
     try {
       const rows = await getDepartments();
       setDepartments(rows);
-      setSource('supabase');
     } catch (err) {
-      setDepartments(mockDepartments.map((item) => ({ ...item, responsibleName: undefined })));
-      setSource('mock');
+      setDepartments([]);
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des departements.');
     } finally {
       setIsLoading(false);
@@ -56,7 +53,7 @@ export function useDepartments() {
     [load],
   );
 
-  const branchMap = useMemo(() => new Map(mockBranches.map((branch) => [branch.id, branch.name])), []);
+  const branchMap = useMemo(() => new Map<string, string>(), []);
 
   return {
     departments,
