@@ -23,7 +23,7 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur sm:px-6">
+    <header className="shrink-0 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur sm:px-6">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <button
@@ -53,6 +53,16 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
             <Bell className="size-4" />
           </button>
           <UserAvatar name={user.fullName} role={user.role} />
+          <AppButton
+            variant="secondary"
+            size="sm"
+            className="inline-flex w-9 shrink-0 rounded-full p-0 sm:hidden"
+            onClick={handleLogout}
+            aria-label="Déconnexion"
+            title="Déconnexion"
+          >
+            <LogOut className="size-4" />
+          </AppButton>
           <AppButton variant="secondary" className="hidden rounded-xl sm:inline-flex" onClick={handleLogout}>
             <LogOut className="size-4" />
             Deconnexion
