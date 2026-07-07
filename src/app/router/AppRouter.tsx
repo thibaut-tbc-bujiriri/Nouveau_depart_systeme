@@ -1,4 +1,4 @@
-﻿import { RoleGuard } from '@/components/common';
+import { RoleGuard } from '@/components/common';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import {
@@ -54,6 +54,9 @@ export function AppRouter() {
 
           <Route element={<RoleGuard allowedRoles={['superadmin', 'admin']} />}>
             <Route path="/finances" element={<FinancesPage />} />
+          </Route>
+
+          <Route element={<RoleGuard allowedRoles={['superadmin', 'admin', 'department_manager']} />}>
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
 

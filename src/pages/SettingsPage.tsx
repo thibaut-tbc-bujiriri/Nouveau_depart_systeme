@@ -85,35 +85,7 @@ const moduleCards: ModuleCard[] = [
   { key: 'profile', label: 'Profil', description: 'Informations personnelles', icon: UserCircle2 },
 ];
 
-const configurableModulesPerRole: Record<'admin' | 'department_manager' | 'department_member', ModulePermissionKey[]> = {
-  admin: [
-    'dashboard',
-    'branches',
-    'users',
-    'members',
-    'departments',
-    'finances',
-    'services',
-    'events',
-    'reports',
-    'settings',
-    'profile',
-  ],
-  department_manager: [
-    'dashboard',
-    'members',
-    'departments',
-    'services',
-    'events',
-    'reports',
-    'profile',
-  ],
-  department_member: [
-    'dashboard',
-    'departments',
-    'profile',
-  ],
-};
+
 
 /* Reusable components for Settings Design Layout */
 interface SettingsSectionCardProps {
@@ -167,6 +139,7 @@ function SettingsInput({ label, error, required, icon: Icon, children }: Setting
 }
 
 interface ModulePermissionCardProps {
+  role: 'admin' | 'department_manager' | 'department_member';
   moduleKey: ModulePermissionKey;
   label: string;
   description: string;
@@ -182,6 +155,8 @@ interface ModulePermissionCardProps {
 }
 
 function ModulePermissionCard({
+  role,
+  moduleKey,
   label,
   description,
   icon: Icon,
@@ -189,7 +164,38 @@ function ModulePermissionCard({
   onToggleAll,
   onToggleAction,
 }: ModulePermissionCardProps) {
-  const isAllEnabled = permissions.view && permissions.create && permissions.update && permissions.delete;
+  const maxMap = maxRolePermissions[role];
+  const maxModule = maxMap?.[moduleKey] || { view: false, create: false, update: false, delete: false };
+
+  // Calculate if all actions allowed for this role are enabled
+  const isAllAllowedEnabled =
+    (!maxModule.view || permissions.view) &&
+    (!maxModule.create || permissions.create) &&
+    (!maxModule.update || permissions.update) &&
+    (!maxModule.delete || permissions.delete);
+
+  const renderActionRow = (action: ModulePermissionAction, labelText: string, currentVal: boolean) => {
+    const isAllowed = maxModule[action];
+
+    return (
+      <label className={cn(
+        "flex items-center justify-between py-1.5 select-none",
+        isAllowed ? "cursor-pointer" : "opacity-60 cursor-not-allowed"
+      )}>
+        <div className="flex flex-col">
+          <span className="text-xs font-medium text-slate-700">{labelText}</span>
+          {!isAllowed && (
+            <span className="text-[9px] text-slate-400 font-semibold mt-0.5">Non disponible pour ce rôle</span>
+          )}
+        </div>
+        <AppSwitch
+          checked={isAllowed ? currentVal : false}
+          disabled={!isAllowed}
+          onChange={(event) => onToggleAction(action, event.target.checked)}
+        />
+      </label>
+    );
+  };
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 hover:shadow-md transition-all duration-200 flex flex-col justify-between overflow-hidden p-5 space-y-4">
@@ -208,44 +214,20 @@ function ModulePermissionCard({
       <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
         {/* Row 1: Activer tout */}
         <label className="flex items-center justify-between py-1.5 cursor-pointer select-none">
-          <span className="text-xs font-medium text-slate-700">Activer tout le module</span>
+          <span className="text-xs font-medium text-slate-700 font-semibold text-teal-700">Activer tout le module</span>
           <AppSwitch
-            checked={isAllEnabled}
+            checked={isAllAllowedEnabled}
             onChange={(event) => onToggleAll(event.target.checked)}
           />
         </label>
         {/* Row 2: Lecture */}
-        <label className="flex items-center justify-between py-1.5 cursor-pointer select-none">
-          <span className="text-xs font-medium text-slate-700">Autoriser la lecture</span>
-          <AppSwitch
-            checked={permissions.view}
-            onChange={(event) => onToggleAction('view', event.target.checked)}
-          />
-        </label>
+        {renderActionRow('view', 'Autoriser la lecture', permissions.view)}
         {/* Row 3: Ajout */}
-        <label className="flex items-center justify-between py-1.5 cursor-pointer select-none">
-          <span className="text-xs font-medium text-slate-700">Autoriser l'ajout</span>
-          <AppSwitch
-            checked={permissions.create}
-            onChange={(event) => onToggleAction('create', event.target.checked)}
-          />
-        </label>
+        {renderActionRow('create', "Autoriser l'ajout", permissions.create)}
         {/* Row 4: Modification */}
-        <label className="flex items-center justify-between py-1.5 cursor-pointer select-none">
-          <span className="text-xs font-medium text-slate-700">Autoriser la modification</span>
-          <AppSwitch
-            checked={permissions.update}
-            onChange={(event) => onToggleAction('update', event.target.checked)}
-          />
-        </label>
+        {renderActionRow('update', 'Autoriser la modification', permissions.update)}
         {/* Row 5: Suppression */}
-        <label className="flex items-center justify-between py-1.5 cursor-pointer select-none">
-          <span className="text-xs font-medium text-slate-700">Autoriser la suppression</span>
-          <AppSwitch
-            checked={permissions.delete}
-            onChange={(event) => onToggleAction('delete', event.target.checked)}
-          />
-        </label>
+        {renderActionRow('delete', 'Autoriser la suppression', permissions.delete)}
       </div>
     </div>
   );
@@ -253,7 +235,7 @@ function ModulePermissionCard({
 
 import { useAuth } from '@/hooks/useAuth';
 import { useUsersManagement } from '@/hooks/useUsersManagement';
-import { roleLabels } from '@/lib/permissions';
+import { roleLabels, maxRolePermissions } from '@/lib/permissions';
 
 export function SettingsPage() {
   const { user } = useAuth();
@@ -631,14 +613,16 @@ export function SettingsPage() {
                 icon={Building2}
                 className="w-full"
                 headerAction={
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(true)}
-                    className="text-xs font-semibold text-teal-600 border border-teal-200 hover:bg-teal-50/50 px-3.5 py-2 rounded-lg transition-colors flex items-center gap-1.5 select-none cursor-pointer"
-                  >
-                    <Settings size={14} />
-                    Modifier
-                  </button>
+                  (user?.role === 'superadmin' || user?.role === 'admin') && (
+                    <button
+                      type="button"
+                      onClick={() => setIsModalOpen(true)}
+                      className="text-xs font-semibold text-teal-600 border border-teal-200 hover:bg-teal-50/50 px-3.5 py-2 rounded-lg transition-colors flex items-center gap-1.5 select-none cursor-pointer"
+                    >
+                      <Settings size={14} />
+                      Modifier
+                    </button>
+                  )
                 }
               >
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 text-sm">
@@ -770,15 +754,21 @@ export function SettingsPage() {
                       <input
                         type="number"
                         min={1}
+                        disabled={user?.role !== 'superadmin' && user?.role !== 'admin'}
                         {...register('exchangeRate', {
                           valueAsNumber: true,
                           onChange: () => setTimeout(() => handleSubmit(onSubmit)(), 100)
                         })}
-                        className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500"
+                        className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
                       />
                       <span className="text-xs text-slate-500 font-bold">CDF</span>
                     </div>
                   </FormFieldWrapper>
+                  {user?.role !== 'superadmin' && user?.role !== 'admin' && (
+                    <span className="text-[10px] text-slate-400 font-semibold block mt-1.5 leading-normal">
+                      🔒 Le taux de change est modifiable uniquement par le responsable ou l'administrateur de l'extension.
+                    </span>
+                  )}
                 </div>
               </SettingsSectionCard>
             </div>
@@ -1132,11 +1122,23 @@ export function SettingsPage() {
                   </FormFieldWrapper>
                 </div>
 
+                <div className="mb-4 text-xs font-semibold">
+                  {selectedUserId ? (
+                    <span className="text-teal-600 bg-teal-50/50 px-3 py-1.5 rounded-lg border border-teal-100/50 inline-block">
+                      💡 Ces permissions personnalisées s’appliquent uniquement à cet utilisateur.
+                    </span>
+                  ) : (
+                    <span className="text-slate-500 bg-slate-50/50 px-3 py-1.5 rounded-lg border border-slate-100 inline-block">
+                      ℹ️ Ces permissions s’appliquent à tous les utilisateurs du rôle sélectionné.
+                    </span>
+                  )}
+                </div>
+
                 <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 pt-2">
                   {moduleCards
                     .filter((moduleItem) => {
-                      const allowed = configurableModulesPerRole[selectedRole];
-                      return allowed ? allowed.includes(moduleItem.key) : false;
+                      const maxPerms = maxRolePermissions[selectedRole];
+                      return maxPerms && maxPerms[moduleItem.key] && maxPerms[moduleItem.key].view;
                     })
                     .map((moduleItem) => {
                       const currentRolePerms = modulePermissions[selectedRole] || getDefaultRolePermissions()[selectedRole];
@@ -1146,6 +1148,7 @@ export function SettingsPage() {
                       return (
                         <ModulePermissionCard
                           key={moduleItem.key}
+                          role={selectedRole}
                           moduleKey={moduleItem.key}
                           label={moduleItem.label}
                           description={moduleItem.description}

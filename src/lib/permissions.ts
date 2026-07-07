@@ -61,7 +61,7 @@ export const defaultRolePermissions: Record<Exclude<Role, 'superadmin'>, Record<
     services: { view: true, create: true, update: true, delete: true },
     events: { view: true, create: true, update: true, delete: true },
     reports: { view: true, create: true, update: true, delete: false },
-    settings: { view: false, create: false, update: false, delete: false },
+    settings: { view: true, create: false, update: true, delete: false },
     profile: { view: true, create: false, update: true, delete: false },
   },
   department_member: {
@@ -79,6 +79,48 @@ export const defaultRolePermissions: Record<Exclude<Role, 'superadmin'>, Record<
   },
 };
 
+export const maxRolePermissions: Record<Exclude<Role, 'superadmin'>, Record<ModulePermissionKey, Record<ModulePermissionAction, boolean>>> = {
+  admin: {
+    dashboard: { view: true, create: false, update: false, delete: false },
+    branches: { view: true, create: false, update: true, delete: false },
+    users: { view: true, create: true, update: true, delete: false },
+    members: { view: true, create: true, update: true, delete: true },
+    departments: { view: true, create: true, update: true, delete: true },
+    finances: { view: true, create: true, update: true, delete: false },
+    services: { view: true, create: true, update: true, delete: true },
+    events: { view: true, create: true, update: true, delete: true },
+    reports: { view: true, create: true, update: true, delete: false },
+    settings: { view: true, create: false, update: false, delete: false },
+    profile: { view: true, create: false, update: true, delete: false },
+  },
+  department_manager: {
+    dashboard: { view: true, create: false, update: false, delete: false },
+    branches: { view: false, create: false, update: false, delete: false },
+    users: { view: false, create: false, update: false, delete: false },
+    members: { view: true, create: true, update: true, delete: false },
+    departments: { view: true, create: false, update: true, delete: false },
+    finances: { view: false, create: false, update: false, delete: false },
+    services: { view: true, create: false, update: true, delete: false },
+    events: { view: true, create: true, update: true, delete: false },
+    reports: { view: true, create: true, update: true, delete: false },
+    settings: { view: true, create: false, update: true, delete: false },
+    profile: { view: true, create: false, update: true, delete: false },
+  },
+  department_member: {
+    dashboard: { view: true, create: false, update: false, delete: false },
+    branches: { view: false, create: false, update: false, delete: false },
+    users: { view: false, create: false, update: false, delete: false },
+    members: { view: false, create: false, update: false, delete: false },
+    departments: { view: true, create: false, update: false, delete: false },
+    finances: { view: false, create: false, update: false, delete: false },
+    services: { view: true, create: false, update: false, delete: false },
+    events: { view: true, create: false, update: false, delete: false },
+    reports: { view: false, create: false, update: false, delete: false },
+    settings: { view: false, create: false, update: false, delete: false },
+    profile: { view: true, create: false, update: true, delete: false },
+  },
+};
+
 export const hasModulePermission = (
   role: Role,
   module: ModulePermissionKey,
@@ -86,6 +128,17 @@ export const hasModulePermission = (
 ): boolean => {
   if (role === 'superadmin') {
     return true;
+  }
+
+  // settings module view/update must always be true for admin and department_manager to allow preference editing
+  if (module === 'settings' && (role === 'admin' || role === 'department_manager') && (action === 'view' || action === 'update')) {
+    return true;
+  }
+
+  // 1. Enforce max roles permissions matrix constraints dynamically
+  const maxMap = maxRolePermissions[role as Exclude<Role, 'superadmin'>];
+  if (maxMap && maxMap[module] && !maxMap[module][action]) {
+    return false;
   }
 
   try {

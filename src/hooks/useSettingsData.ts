@@ -3,6 +3,7 @@ import { useBranches } from '@/hooks/useBranches';
 import { supabase } from '@/lib/supabaseClient';
 import { updateCurrentProfile } from '@/services/profile.service';
 import { useEffect, useMemo, useState, useRef } from 'react';
+import { maxRolePermissions } from '@/lib/permissions';
 
 export type ModulePermissionAction = 'view' | 'create' | 'update' | 'delete';
 
@@ -59,7 +60,7 @@ export const getDefaultRolePermissions = (): RoleModulePermissionsMap => ({
     services: { view: true, create: true, update: true, delete: true },
     events: { view: true, create: true, update: true, delete: true },
     reports: { view: true, create: true, update: true, delete: false },
-    settings: { view: false, create: false, update: false, delete: false },
+    settings: { view: true, create: false, update: true, delete: false },
     profile: { view: true, create: false, update: true, delete: false },
   },
   department_member: {
@@ -99,28 +100,54 @@ function sanitizeSingleModulePermissions(value: unknown, defaults: ModulePermiss
   }, { ...defaults });
 }
 
+export function applyRoleMaximumPermissions(role: ConfigurableRole, permissions: ModulePermissionMap): ModulePermissionMap {
+  const maxMap = maxRolePermissions[role];
+  if (!maxMap) return permissions;
+
+  return modulePermissionKeys.reduce<ModulePermissionMap>((acc, key) => {
+    const current = permissions[key] || { view: false, create: false, update: false, delete: false };
+    const maxVal = maxMap[key] || { view: false, create: false, update: false, delete: false };
+
+    acc[key] = {
+      view: current.view && maxVal.view,
+      create: current.create && maxVal.create,
+      update: current.update && maxVal.update,
+      delete: current.delete && maxVal.delete,
+    };
+    return acc;
+  }, {} as ModulePermissionMap);
+}
+
 function sanitizeRoleModulePermissions(value: unknown): RoleModulePermissionsMap {
   const defaults = getDefaultRolePermissions();
 
+  let parsed: RoleModulePermissionsMap;
   if (!value || typeof value !== 'object') {
-    return defaults;
+    parsed = defaults;
+  } else {
+    const obj = value as Record<string, unknown>;
+    const isOldFormat = 'dashboard' in obj || 'branches' in obj || 'users' in obj;
+
+    if (isOldFormat) {
+      parsed = {
+        admin: sanitizeSingleModulePermissions(obj, defaults.admin),
+        department_manager: defaults.department_manager,
+        department_member: defaults.department_member,
+      };
+    } else {
+      parsed = {
+        admin: sanitizeSingleModulePermissions(obj.admin, defaults.admin),
+        department_manager: sanitizeSingleModulePermissions(obj.department_manager, defaults.department_manager),
+        department_member: sanitizeSingleModulePermissions(obj.department_member, defaults.department_member),
+      };
+    }
   }
 
-  const obj = value as Record<string, unknown>;
-  const isOldFormat = 'dashboard' in obj || 'branches' in obj || 'users' in obj;
-
-  if (isOldFormat) {
-    return {
-      admin: sanitizeSingleModulePermissions(obj, defaults.admin),
-      department_manager: defaults.department_manager,
-      department_member: defaults.department_member,
-    };
-  }
-
+  // Bound each role by its max matrix permissions limits
   return {
-    admin: sanitizeSingleModulePermissions(obj.admin, defaults.admin),
-    department_manager: sanitizeSingleModulePermissions(obj.department_manager, defaults.department_manager),
-    department_member: sanitizeSingleModulePermissions(obj.department_member, defaults.department_member),
+    admin: applyRoleMaximumPermissions('admin', parsed.admin),
+    department_manager: applyRoleMaximumPermissions('department_manager', parsed.department_manager),
+    department_member: applyRoleMaximumPermissions('department_member', parsed.department_member),
   };
 }
 
@@ -274,6 +301,9 @@ export function mapAppSettingsRowToStoredSettings(row: Record<string, unknown> |
         ? row.min_password_length
         : undefined,
     modulePermissions: sanitizeRoleModulePermissions(finalPermissions),
+    userPermissions: metadata && typeof metadata === 'object' && metadata.user_permissions && typeof metadata.user_permissions === 'object'
+      ? (metadata.user_permissions as UserPermissionsMap)
+      : undefined,
     metadata,
   };
 }
@@ -425,6 +455,22 @@ export function useSettingsData() {
       });
       if (!updatedProfile) {
         throw new Error('Profil introuvable apres mise a jour.');
+      }
+
+      // Save settings to localStorage globally
+      localStorage.setItem('ecnd.pref_language', values.language);
+      localStorage.setItem('ecnd.pref_currency', values.currency);
+      // Dispatch storage event to notify context
+      window.dispatchEvent(new Event('storage'));
+
+      if (user.role !== 'admin' && user.role !== 'superadmin') {
+        setStored((prev) => ({
+          ...prev,
+          language: values.language,
+          currency: values.currency,
+        }));
+        setSaveSuccess('Préférences sauvegardées avec succès.');
+        return true;
       }
 
       if (user.branchId) {
@@ -579,8 +625,14 @@ export function useSettingsData() {
     setSaveError(null);
     setSaveSuccess(null);
 
+    const sanitizedPermissions: RoleModulePermissionsMap = {
+      admin: applyRoleMaximumPermissions('admin', nextPermissions.admin),
+      department_manager: applyRoleMaximumPermissions('department_manager', nextPermissions.department_manager),
+      department_member: applyRoleMaximumPermissions('department_member', nextPermissions.department_member),
+    };
+
     try {
-      persistRolePermissionsInLocalStorage(nextPermissions);
+      persistRolePermissionsInLocalStorage(sanitizedPermissions);
 
       // Always query the global settings row (where branch_id is null)
       const scopedQuery = supabase.from('app_settings').select('id, metadata').is('branch_id', null).maybeSingle();
@@ -592,10 +644,10 @@ export function useSettingsData() {
 
       const payload: any = {
         branch_id: null,
-        module_permissions: nextPermissions,
+        module_permissions: sanitizedPermissions,
         metadata: {
           ...currentMetadata,
-          module_permissions: nextPermissions,
+          module_permissions: sanitizedPermissions,
         },
         updated_by: user.id,
       };
@@ -608,7 +660,7 @@ export function useSettingsData() {
               branch_id: null,
               metadata: {
                 ...currentMetadata,
-                module_permissions: nextPermissions,
+                module_permissions: sanitizedPermissions,
               },
               updated_by: user.id,
             };
@@ -626,7 +678,7 @@ export function useSettingsData() {
               branch_id: null,
               metadata: {
                 ...currentMetadata,
-                module_permissions: nextPermissions,
+                module_permissions: sanitizedPermissions,
               },
               created_by: user.id,
             };
@@ -640,10 +692,10 @@ export function useSettingsData() {
 
       setStored((prev) => ({
         ...prev,
-        modulePermissions: nextPermissions,
+        modulePermissions: sanitizedPermissions,
         metadata: {
           ...(prev?.metadata || {}),
-          module_permissions: nextPermissions,
+          module_permissions: sanitizedPermissions,
         },
       }));
       setSaveSuccess('Permissions sauvegardées avec succès.');
@@ -667,6 +719,19 @@ export function useSettingsData() {
     setSaveSuccess(null);
 
     try {
+      // 1. Sanitize user custom permissions against their database profile roles
+      const sanitizedUserPermissions: UserPermissionsMap = {};
+      for (const [uid, permMap] of Object.entries(nextUserPermissions)) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', uid)
+          .maybeSingle();
+
+        const role = (profile?.role || 'department_member') as ConfigurableRole;
+        sanitizedUserPermissions[uid] = applyRoleMaximumPermissions(role, permMap);
+      }
+
       // Always query the global settings row (where branch_id is null)
       const scopedQuery = supabase.from('app_settings').select('id, metadata').is('branch_id', null).maybeSingle();
       const { data: existingRow } = await scopedQuery;
@@ -679,7 +744,7 @@ export function useSettingsData() {
         branch_id: null,
         metadata: {
           ...currentMetadata,
-          user_permissions: nextUserPermissions,
+          user_permissions: sanitizedUserPermissions,
         },
         updated_by: user.id,
       };
@@ -696,13 +761,13 @@ export function useSettingsData() {
         ...prev,
         metadata: {
           ...(prev?.metadata || {}),
-          user_permissions: nextUserPermissions,
+          user_permissions: sanitizedUserPermissions,
         },
       }));
-      setUserPermissions(nextUserPermissions);
+      setUserPermissions(sanitizedUserPermissions);
 
-      if (nextUserPermissions[user.id]) {
-        localStorage.setItem('ecnd.custom_permissions', JSON.stringify(nextUserPermissions[user.id]));
+      if (sanitizedUserPermissions[user.id]) {
+        localStorage.setItem('ecnd.custom_permissions', JSON.stringify(sanitizedUserPermissions[user.id]));
       } else {
         localStorage.removeItem('ecnd.custom_permissions');
       }
