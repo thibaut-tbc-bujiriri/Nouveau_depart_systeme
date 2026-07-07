@@ -96,3 +96,14 @@ export async function deleteDepartment(departmentId: string): Promise<void> {
     throw error;
   }
 }
+
+export async function renameDepartmentName(oldName: string, newName: string): Promise<void> {
+  const { error } = await supabase
+    .from('departments')
+    .update({ name: newName })
+    .eq('name', oldName);
+
+  if (error) {
+    throw error;
+  }
+}

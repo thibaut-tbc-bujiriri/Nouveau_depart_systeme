@@ -1,4 +1,4 @@
-﻿import type { Role } from '@/types';
+import type { Role } from '@/types';
 
 export interface ProfileRow {
   id: string;
@@ -21,8 +21,15 @@ export interface BranchRow {
   city: string | null;
   country: string | null;
   pastor_name: string | null;
+  pastor_id?: string | null;
+  profiles?: {
+    full_name: string | null;
+    email: string | null;
+    role: string | null;
+  } | null;
   created_at: string;
   is_active: boolean | null;
+  avatar_url: string | null;
 }
 
 export interface DepartmentRow {
@@ -46,6 +53,7 @@ export interface ChurchMemberRow {
   email: string | null;
   joined_at: string | null;
   status: string | null;
+  avatar_url: string | null;
 }
 
 export interface ChurchMemberDepartmentRow {

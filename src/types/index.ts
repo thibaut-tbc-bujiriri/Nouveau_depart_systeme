@@ -1,4 +1,4 @@
-﻿export type Role = 'superadmin' | 'admin' | 'department_manager' | 'department_member';
+export type Role = 'superadmin' | 'admin' | 'department_manager' | 'department_member';
 
 export type DepartmentUserRole = 'department_manager' | 'department_member';
 
@@ -28,10 +28,12 @@ export interface Branch {
   city: string;
   country: string;
   pastorName: string;
+  pastorId?: string;
   createdAt: string;
   memberCount: number;
   departmentCount: number;
   isActive: boolean;
+  avatarUrl?: string;
 }
 
 export interface Profile {
@@ -49,7 +51,7 @@ export interface Profile {
 export interface Department {
   id: string;
   branchId: string;
-  name: DepartmentName;
+  name: string;
   managerId: string;
   memberCount: number;
   monthlyBudget: number;
@@ -83,6 +85,7 @@ export interface ChurchMember {
   departmentIds: string[];
   joinedAt: string;
   status: 'active' | 'inactive';
+  avatarUrl?: string;
 }
 
 export interface FinanceRecord {

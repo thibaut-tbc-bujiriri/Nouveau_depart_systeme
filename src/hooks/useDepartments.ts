@@ -5,6 +5,7 @@ import {
   type DepartmentResolved,
   type DepartmentUpsertInput,
   updateDepartment,
+  renameDepartmentName,
 } from '@/services/departments.service';
 import type { Department } from '@/types';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -67,6 +68,8 @@ export function useDepartments() {
     updateDepartment: (departmentId: string, payload: DepartmentUpsertInput) =>
       runMutation(() => updateDepartment(departmentId, payload)),
     deleteDepartment: (departmentId: string) => runMutation(() => deleteDepartment(departmentId)),
+    renameDepartmentName: (oldName: string, newName: string) =>
+      runMutation(() => renameDepartmentName(oldName, newName)),
   };
 }
 

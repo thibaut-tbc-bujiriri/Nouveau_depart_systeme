@@ -11,6 +11,7 @@ export interface ManagedUser {
   branchId: string;
   departmentIds: string[];
   status: string;
+  avatarUrl?: string | null;
 }
 
 type MembershipColumn = 'profile_id' | 'user_id';
@@ -83,6 +84,7 @@ export async function getManagedUsers() {
     branchId: row.branch_id ?? '',
     departmentIds: departmentIdsByUser[row.id] ?? [],
     status: row.status ?? 'active',
+    avatarUrl: row.avatar_url,
   }));
 
   const branches: Branch[] = ((branchesResult.data ?? []) as Array<Record<string, unknown>>).map((row) => ({
@@ -109,6 +111,8 @@ export async function updateUserAccess(
     role: Role;
     branchId: string;
     departmentIds: string[];
+    avatarUrl?: string | null;
+    status?: string;
   },
 ) {
   if (payload.role === 'superadmin') {
@@ -117,12 +121,22 @@ export async function updateUserAccess(
     }
   }
 
+  const updatePayload: Record<string, any> = {
+    role: payload.role,
+    branch_id: payload.branchId || null,
+  };
+
+  if (payload.avatarUrl !== undefined) {
+    updatePayload.avatar_url = payload.avatarUrl;
+  }
+
+  if (payload.status !== undefined) {
+    updatePayload.status = payload.status;
+  }
+
   const { error: updateProfileError } = await supabase
     .from('profiles')
-    .update({
-      role: payload.role,
-      branch_id: payload.branchId || null,
-    })
+    .update(updatePayload)
     .eq('id', userId);
 
   if (updateProfileError) {
@@ -140,6 +154,12 @@ export async function updateUserAccess(
   if (deleteRelationsError) {
     throw deleteRelationsError;
   }
+
+  // Remove this user as manager from any departments
+  await supabase
+    .from('departments')
+    .update({ manager_profile_id: null })
+    .eq('manager_profile_id', userId);
 
   if (payload.departmentIds.length === 0) {
     return;
@@ -162,6 +182,14 @@ export async function updateUserAccess(
   if (insertRelationsError) {
     throw insertRelationsError;
   }
+
+  // If user is a department manager, set them as the manager of their assigned department
+  if (payload.role === 'department_manager' && payload.departmentIds.length > 0) {
+    await supabase
+      .from('departments')
+      .update({ manager_profile_id: userId })
+      .eq('id', payload.departmentIds[0]);
+  }
 }
 
 export async function deleteManagedUser(userId: string) {
@@ -175,6 +203,12 @@ export async function deleteManagedUser(userId: string) {
   if (deleteRelationsError) {
     throw deleteRelationsError;
   }
+
+  // Remove this user as manager from any departments
+  await supabase
+    .from('departments')
+    .update({ manager_profile_id: null })
+    .eq('manager_profile_id', userId);
 
   const { error: deleteProfileError } = await supabase.from('profiles').delete().eq('id', userId);
   if (deleteProfileError) {
@@ -221,6 +255,8 @@ export async function createManagedUser(payload: {
   role: Role;
   branchId: string;
   departmentIds: string[];
+  avatarUrl?: string | null;
+  status?: string;
 }) {
   const normalizedEmail = payload.email.trim().toLowerCase();
 
@@ -272,7 +308,8 @@ export async function createManagedUser(payload: {
       email: normalizedEmail,
       role: payload.role,
       branch_id: payload.branchId || null,
-      status: 'active',
+      status: payload.status || 'active',
+      avatar_url: payload.avatarUrl || null,
     },
     { onConflict: 'id' },
   );
@@ -285,6 +322,8 @@ export async function createManagedUser(payload: {
     role: payload.role,
     branchId: payload.branchId,
     departmentIds: payload.departmentIds,
+    avatarUrl: payload.avatarUrl,
+    status: payload.status || 'active',
   });
 
   if (!previousSession) {

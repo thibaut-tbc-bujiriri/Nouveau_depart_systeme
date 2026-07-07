@@ -1,11 +1,13 @@
-import { BranchBadge, DataTable, DepartmentBadge, EmptyState, LoadingState, PageHeader } from '@/components/common';
-import { AppButton, AppInput, AppSelect, FormFieldWrapper, SearchInput } from '@/components/ui';
+import { Avatar, BranchBadge, DataTable, DepartmentBadge, EmptyState, LoadingState, PageHeader } from '@/components/common';
+import { AppButton, AppInput, AppSelect, FormFieldWrapper, PhotoUpload, SearchInput } from '@/components/ui';
 import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import { useBranches } from '@/hooks/useBranches';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useMembers } from '@/hooks/useMembers';
+import { hasModulePermission } from '@/lib/permissions';
 import type { ChurchMember } from '@/types';
+import { uploadPhoto } from '@/utils/storage';
 import { useMemo, useState } from 'react';
 
 interface MemberFormState {
@@ -18,6 +20,7 @@ interface MemberFormState {
   status: ChurchMember['status'];
   joinedAt: string;
   departmentIds: string[];
+  avatarUrl?: string | null;
 }
 
 const initialForm: MemberFormState = {
@@ -30,6 +33,7 @@ const initialForm: MemberFormState = {
   status: 'active',
   joinedAt: new Date().toISOString().slice(0, 10),
   departmentIds: [],
+  avatarUrl: null,
 };
 
 export function MembersPage() {
@@ -42,8 +46,11 @@ export function MembersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState<MemberFormState>(initialForm);
+  const [photoFile, setPhotoFile] = useState<File | null | undefined>(undefined);
 
-  const canManage = user?.role === 'superadmin' || user?.role === 'admin' || user?.role === 'department_manager';
+  const canCreate = user ? hasModulePermission(user.role, 'members', 'create') : false;
+  const canUpdate = user ? hasModulePermission(user.role, 'members', 'update') : false;
+  const canDelete = user ? hasModulePermission(user.role, 'members', 'delete') : false;
 
   const scopedMembers = useMemo(() => {
     if (!user) {
@@ -87,12 +94,14 @@ export function MembersPage() {
 
   const openCreateModal = () => {
     setEditingId(null);
+    setPhotoFile(undefined);
     resetForm();
     setIsModalOpen(true);
   };
 
   const openEditModal = (member: (typeof filtered)[number]) => {
     setEditingId(member.id);
+    setPhotoFile(undefined);
     setForm({
       branchId: member.branchId,
       firstName: member.firstName,
@@ -103,6 +112,7 @@ export function MembersPage() {
       status: member.status,
       joinedAt: member.joinedAt.slice(0, 10),
       departmentIds: [...member.departmentIds],
+      avatarUrl: member.avatarUrl,
     });
     setIsModalOpen(true);
   };
@@ -117,6 +127,17 @@ export function MembersPage() {
       return;
     }
 
+    let uploadedUrl = form.avatarUrl || null;
+    if (photoFile) {
+      try {
+        uploadedUrl = await uploadPhoto(photoFile, 'members');
+      } catch (err) {
+        return;
+      }
+    } else if (photoFile === null) {
+      uploadedUrl = null;
+    }
+
     const payload = {
       branchId: form.branchId,
       firstName: form.firstName,
@@ -127,6 +148,7 @@ export function MembersPage() {
       status: form.status,
       joinedAt: form.joinedAt,
       departmentIds: form.departmentIds,
+      avatarUrl: uploadedUrl,
     };
 
     const ok = editingId ? await updateMember(editingId, payload) : await createMember(payload);
@@ -158,7 +180,7 @@ export function MembersPage() {
       <PageHeader
         title="Membres"
         description="Vue consolidee des membres actifs de l'eglise."
-        actions={canManage ? <AppButton onClick={openCreateModal}>Ajouter un membre</AppButton> : undefined}
+        actions={canCreate ? <AppButton onClick={openCreateModal}>Ajouter un membre</AppButton> : undefined}
       >
         <SearchInput value={query} onChange={setQuery} placeholder="Rechercher un membre..." />
       </PageHeader>
@@ -175,7 +197,14 @@ export function MembersPage() {
             {
               key: 'name',
               label: 'Nom complet',
-              render: (member) => `${member.firstName} ${member.lastName}`,
+              render: (member) => (
+                <div className="flex items-center gap-3">
+                  <Avatar name={`${member.firstName} ${member.lastName}`} avatarUrl={member.avatarUrl} size="md" />
+                  <span className="font-medium text-slate-800">
+                    {member.firstName} {member.lastName}
+                  </span>
+                </div>
+              ),
             },
             {
               key: 'branch',
@@ -213,19 +242,25 @@ export function MembersPage() {
             {
               key: 'actions',
               label: 'Actions',
-              render: (member) =>
-                canManage ? (
+              render: (member) => {
+                const showActions = canUpdate || canDelete;
+                return showActions ? (
                   <div className="flex gap-2">
-                    <AppButton size="sm" variant="secondary" onClick={() => openEditModal(member)}>
-                      Modifier
-                    </AppButton>
-                    <AppButton size="sm" variant="danger" onClick={() => setDeleteId(member.id)}>
-                      Supprimer
-                    </AppButton>
+                    {canUpdate && (
+                      <AppButton size="sm" variant="secondary" onClick={() => openEditModal(member)}>
+                        Modifier
+                      </AppButton>
+                    )}
+                    {canDelete && (
+                      <AppButton size="sm" variant="danger" onClick={() => setDeleteId(member.id)}>
+                        Supprimer
+                      </AppButton>
+                    )}
                   </div>
                 ) : (
                   '-'
-                ),
+                );
+              },
             },
           ]}
         />
@@ -233,6 +268,12 @@ export function MembersPage() {
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? 'Modifier membre' : 'Nouveau membre'}>
         <div className="space-y-4">
+          <PhotoUpload
+            value={form.avatarUrl}
+            onChange={setPhotoFile}
+            nameInitial={`${form.firstName} ${form.lastName}`}
+            label="Photo de profil du membre"
+          />
           <div className="grid gap-4 md:grid-cols-2">
             <FormFieldWrapper label="Prenom" required>
               <AppInput value={form.firstName} onChange={(event) => setForm((prev) => ({ ...prev, firstName: event.target.value }))} />

@@ -1,9 +1,17 @@
-﻿export const formatCurrency = (amount: number, currency: string = 'USD') => {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  }).format(amount);
+export const formatCurrency = (amount: number) => {
+  const activeCurrency = localStorage.getItem('ecnd.pref_currency') || 'USD';
+  const exchangeRate = Number(localStorage.getItem('ecnd.pref_exchange_rate') || '2500');
+
+  if (activeCurrency === 'USD') {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } else {
+    const cdfAmount = Math.round(amount * exchangeRate);
+    return `${cdfAmount.toLocaleString('fr-FR')} CDF`;
+  }
 };
 
 export const formatDate = (date: string) => {

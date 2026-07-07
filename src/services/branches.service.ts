@@ -10,12 +10,40 @@ export interface BranchUpsertInput {
   country: string;
   pastorName: string;
   isActive: boolean;
+  avatarUrl?: string | null;
+  pastorId?: string | null;
+}
+
+export interface ActiveUserOption {
+  id: string;
+  fullName: string;
+  role: string;
+  email: string;
+}
+
+export async function getActiveUsers(): Promise<ActiveUserOption[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, email, role, status')
+    .eq('status', 'active')
+    .order('full_name', { ascending: true });
+
+  if (error) {
+    throw error ?? new Error('Impossible de charger les utilisateurs.');
+  }
+
+  return (data || []).map((row) => ({
+    id: row.id,
+    fullName: row.full_name ?? 'Sans nom',
+    role: row.role,
+    email: row.email ?? '',
+  }));
 }
 
 export async function getBranches(): Promise<Branch[]> {
   const { data: branchRows, error } = await supabase
     .from('branches')
-    .select('*')
+    .select('*, profiles:pastor_id(full_name, email, role)')
     .order('name', { ascending: true });
 
   if (error || !branchRows) {
@@ -69,6 +97,8 @@ export async function createBranch(payload: BranchUpsertInput): Promise<void> {
     country: payload.country,
     pastor_name: payload.pastorName,
     is_active: payload.isActive,
+    avatar_url: payload.avatarUrl || null,
+    pastor_id: payload.pastorId || null,
   });
 
   if (error) {
@@ -86,6 +116,8 @@ export async function updateBranch(branchId: string, payload: BranchUpsertInput)
       country: payload.country,
       pastor_name: payload.pastorName,
       is_active: payload.isActive,
+      avatar_url: payload.avatarUrl !== undefined ? payload.avatarUrl : null,
+      pastor_id: payload.pastorId !== undefined ? payload.pastorId : null,
     })
     .eq('id', branchId);
 

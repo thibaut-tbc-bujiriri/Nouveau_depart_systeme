@@ -1,4 +1,4 @@
-﻿import type { NavItem } from '@/types';
+import type { NavItem } from '@/types';
 
 export const navItems: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', to: '/dashboard', icon: 'layout-dashboard', allowedRoles: ['superadmin', 'admin', 'department_manager', 'department_member'] },

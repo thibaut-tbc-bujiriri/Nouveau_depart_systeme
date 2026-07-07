@@ -1,10 +1,13 @@
-import { BranchBadge, DataTable, EmptyState, LoadingState, PageHeader, StatCard } from '@/components/common';
-import { AppButton, AppInput, FormFieldWrapper, SearchInput } from '@/components/ui';
+import { BranchAvatar, DataTable, EmptyState, LoadingState, PageHeader, StatCard } from '@/components/common';
+import { AppButton, AppInput, AppSelect, FormFieldWrapper, PhotoUpload, SearchInput } from '@/components/ui';
 import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import { useBranches } from '@/hooks/useBranches';
+import { roleLabels } from '@/lib/permissions';
+import { getActiveUsers, type ActiveUserOption } from '@/services/branches.service';
 import { restrictBranchesByRole } from '@/utils/permissions';
-import { useMemo, useState } from 'react';
+import { uploadPhoto } from '@/utils/storage';
+import { useEffect, useMemo, useState } from 'react';
 
 interface BranchFormState {
   code: string;
@@ -13,6 +16,8 @@ interface BranchFormState {
   country: string;
   pastorName: string;
   isActive: boolean;
+  avatarUrl?: string | null;
+  pastorId: string;
 }
 
 const initialBranchForm: BranchFormState = {
@@ -22,6 +27,8 @@ const initialBranchForm: BranchFormState = {
   country: 'RDC',
   pastorName: '',
   isActive: true,
+  avatarUrl: null,
+  pastorId: '',
 };
 
 function buildBranchCode(name: string) {
@@ -51,6 +58,20 @@ export function BranchesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null | undefined>(undefined);
+  const [activeUsers, setActiveUsers] = useState<ActiveUserOption[]>([]);
+
+  useEffect(() => {
+    async function loadActiveUsers() {
+      try {
+        const users = await getActiveUsers();
+        setActiveUsers(users);
+      } catch (err) {
+        console.error('Erreur lors du chargement des utilisateurs:', err);
+      }
+    }
+    void loadActiveUsers();
+  }, []);
 
   const scopedBranches = useMemo(() => {
     if (!user) {
@@ -59,6 +80,15 @@ export function BranchesPage() {
 
     return restrictBranchesByRole(branches, user);
   }, [branches, user]);
+
+  const branchManagerOptions = useMemo(() => {
+    return activeUsers.filter(
+      (u) =>
+        u.role === 'admin' ||
+        u.role === 'superadmin' ||
+        u.id === form.pastorId,
+    );
+  }, [activeUsers, form.pastorId]);
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -73,12 +103,14 @@ export function BranchesPage() {
 
   const openCreateModal = () => {
     setEditingId(null);
+    setPhotoFile(undefined);
     setForm(initialBranchForm);
     setIsModalOpen(true);
   };
 
   const openEditModal = (branch: (typeof scopedBranches)[number]) => {
     setEditingId(branch.id);
+    setPhotoFile(undefined);
     setForm({
       code: branch.code,
       name: branch.name,
@@ -86,6 +118,8 @@ export function BranchesPage() {
       country: branch.country,
       pastorName: branch.pastorName,
       isActive: branch.isActive,
+      avatarUrl: branch.avatarUrl,
+      pastorId: (branch as any).pastorId || '',
     });
     setIsModalOpen(true);
   };
@@ -95,9 +129,25 @@ export function BranchesPage() {
       return;
     }
 
+    let uploadedUrl = form.avatarUrl || null;
+    if (photoFile) {
+      try {
+        uploadedUrl = await uploadPhoto(photoFile, 'branches');
+      } catch (err) {
+        return;
+      }
+    } else if (photoFile === null) {
+      uploadedUrl = null;
+    }
+
+    const payload = {
+      ...form,
+      avatarUrl: uploadedUrl,
+    };
+
     const ok = editingId
-      ? await updateBranch(editingId, form)
-      : await createBranch(form);
+      ? await updateBranch(editingId, payload)
+      : await createBranch(payload);
 
     if (ok) {
       setIsModalOpen(false);
@@ -126,7 +176,7 @@ export function BranchesPage() {
       <PageHeader
         title="Extensions"
         description="Gestion des extensions de l'eglise."
-        actions={<AppButton onClick={openCreateModal}>Ajouter une extension</AppButton>}
+        actions={user.role === 'superadmin' ? <AppButton onClick={openCreateModal}>Ajouter une extension</AppButton> : undefined}
       >
         <SearchInput value={query} onChange={setQuery} placeholder="Rechercher une extension..." />
       </PageHeader>
@@ -157,7 +207,7 @@ export function BranchesPage() {
           data={filtered}
           keyExtractor={(branch) => branch.id}
           columns={[
-            { key: 'name', label: 'Nom', render: (branch) => <BranchBadge branchName={branch.name} /> },
+            { key: 'name', label: 'Nom', render: (branch) => <BranchAvatar name={branch.name} avatarUrl={branch.avatarUrl} size="md" /> },
             { key: 'city', label: 'Ville', render: (branch) => branch.city },
             { key: 'pastor', label: 'Responsable', render: (branch) => branch.pastorName },
             { key: 'members', label: 'Membres', render: (branch) => branch.memberCount },
@@ -178,9 +228,11 @@ export function BranchesPage() {
                   <AppButton size="sm" variant="secondary" onClick={() => openEditModal(branch)}>
                     Modifier
                   </AppButton>
-                  <AppButton size="sm" variant="danger" onClick={() => setDeleteId(branch.id)}>
-                    Supprimer
-                  </AppButton>
+                  {user.role === 'superadmin' ? (
+                    <AppButton size="sm" variant="danger" onClick={() => setDeleteId(branch.id)}>
+                      Supprimer
+                    </AppButton>
+                  ) : null}
                 </div>
               ),
             },
@@ -201,9 +253,16 @@ export function BranchesPage() {
               onChange={() => undefined}
             />
           </FormFieldWrapper>
+          <PhotoUpload
+            value={form.avatarUrl}
+            onChange={setPhotoFile}
+            nameInitial={form.name || 'E'}
+            label="Logo / Photo de l'extension"
+          />
           <FormFieldWrapper label="Nom" required>
             <AppInput
               value={form.name}
+              disabled={user.role !== 'superadmin'}
               onChange={(event) =>
                 setForm((prev) => {
                   const nextName = event.target.value;
@@ -222,22 +281,53 @@ export function BranchesPage() {
           </FormFieldWrapper>
           <div className="grid gap-4 md:grid-cols-2">
             <FormFieldWrapper label="Ville" required>
-              <AppInput value={form.city} onChange={(event) => setForm((prev) => ({ ...prev, city: event.target.value }))} />
+              <AppInput
+                value={form.city}
+                disabled={user.role !== 'superadmin'}
+                onChange={(event) => setForm((prev) => ({ ...prev, city: event.target.value }))}
+              />
             </FormFieldWrapper>
             <FormFieldWrapper label="Pays" required>
-              <AppInput value={form.country} onChange={(event) => setForm((prev) => ({ ...prev, country: event.target.value }))} />
+              <AppInput
+                value={form.country}
+                disabled={user.role !== 'superadmin'}
+                onChange={(event) => setForm((prev) => ({ ...prev, country: event.target.value }))}
+              />
             </FormFieldWrapper>
           </div>
           <FormFieldWrapper label="Responsable">
-            <AppInput
-              value={form.pastorName}
-              onChange={(event) => setForm((prev) => ({ ...prev, pastorName: event.target.value }))}
-            />
+            {user.role === 'superadmin' ? (
+              <AppSelect
+                value={form.pastorId}
+                onChange={(event) => {
+                  const selectedUserId = event.target.value;
+                  const selectedUser = activeUsers.find((u) => u.id === selectedUserId);
+                  setForm((prev) => ({
+                    ...prev,
+                    pastorId: selectedUserId,
+                    pastorName: selectedUser ? selectedUser.fullName : '',
+                  }));
+                }}
+              >
+                <option value="">Selectionner un responsable</option>
+                {branchManagerOptions.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.fullName} ({roleLabels[user.role as keyof typeof roleLabels] || user.role}){user.email ? ` · ${user.email}` : ''}
+                  </option>
+                ))}
+              </AppSelect>
+            ) : (
+              <AppInput
+                value={form.pastorName || 'A definir'}
+                disabled
+              />
+            )}
           </FormFieldWrapper>
           <label className="flex items-center gap-2 text-sm text-slate-700">
             <input
               type="checkbox"
               checked={form.isActive}
+              disabled={user.role !== 'superadmin'}
               onChange={(event) => setForm((prev) => ({ ...prev, isActive: event.target.checked }))}
             />
             Extension active

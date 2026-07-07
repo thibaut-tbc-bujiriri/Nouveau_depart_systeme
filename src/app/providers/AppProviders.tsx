@@ -1,8 +1,9 @@
-﻿import { onAuthStateChange } from '@/services/auth.service';
+import { onAuthStateChange } from '@/services/auth.service';
 import { useEffect } from 'react';
 import { useAuthStore } from '@/app/store/authStore';
 import { AppRouter } from '@/app/router/AppRouter';
 import { BrowserRouter } from 'react-router-dom';
+import { PreferencesProvider } from '@/contexts/PreferencesContext';
 
 export function AppProviders() {
   const initializeAuth = useAuthStore((state) => state.initializeAuth);
@@ -26,9 +27,11 @@ export function AppProviders() {
   }, [initializeAuth, refreshFromSession]);
 
   return (
-    <BrowserRouter>
-      <AppRouter />
-    </BrowserRouter>
+    <PreferencesProvider>
+      <BrowserRouter>
+        <AppRouter />
+      </BrowserRouter>
+    </PreferencesProvider>
   );
 }
 

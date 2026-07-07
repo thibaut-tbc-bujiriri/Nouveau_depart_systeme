@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   Branch,
   Department,
   Event,
@@ -9,6 +9,7 @@
   Role,
   UserDepartmentRelation,
 } from '@/types';
+import type { ModulePermissionKey, ModulePermissionAction } from '@/hooks/useSettingsData';
 
 export type Permission =
   | 'dashboard:view'
@@ -25,9 +26,8 @@ export type Permission =
   | 'settings:view'
   | 'profile:view';
 
-const ALL_PERMISSIONS = '*';
 
-type RolePermissionMap = Record<Role, Permission[] | typeof ALL_PERMISSIONS>;
+
 type AccessScope = 'global' | 'branch' | 'department' | 'read_limited';
 
 export const roleLabels: Record<Role, string> = {
@@ -37,25 +37,93 @@ export const roleLabels: Record<Role, string> = {
   department_member: 'Membre Departement',
 };
 
-export const rolePermissions: RolePermissionMap = {
-  superadmin: ALL_PERMISSIONS,
-  admin: ALL_PERMISSIONS,
-  department_manager: [
-    'dashboard:view',
-    'members:view',
-    'departments:view',
-    'departments:manage',
-    'services:view',
-    'events:view',
-    'reports:view',
-    'profile:view',
-  ],
-  department_member: ['dashboard:view', 'departments:view', 'profile:view'],
+export const defaultRolePermissions: Record<Exclude<Role, 'superadmin'>, Record<ModulePermissionKey, Record<ModulePermissionAction, boolean>>> = {
+  admin: {
+    dashboard: { view: true, create: false, update: false, delete: false },
+    branches: { view: true, create: true, update: true, delete: true },
+    users: { view: true, create: true, update: true, delete: true },
+    members: { view: true, create: true, update: true, delete: true },
+    departments: { view: true, create: true, update: true, delete: true },
+    finances: { view: true, create: true, update: true, delete: true },
+    services: { view: true, create: true, update: true, delete: true },
+    events: { view: true, create: true, update: true, delete: true },
+    reports: { view: true, create: true, update: true, delete: true },
+    settings: { view: true, create: true, update: true, delete: false },
+    profile: { view: true, create: false, update: true, delete: false },
+  },
+  department_manager: {
+    dashboard: { view: true, create: false, update: false, delete: false },
+    branches: { view: false, create: false, update: false, delete: false },
+    users: { view: false, create: false, update: false, delete: false },
+    members: { view: true, create: true, update: true, delete: false },
+    departments: { view: true, create: false, update: true, delete: false },
+    finances: { view: false, create: false, update: false, delete: false },
+    services: { view: true, create: true, update: true, delete: true },
+    events: { view: true, create: true, update: true, delete: true },
+    reports: { view: true, create: true, update: true, delete: false },
+    settings: { view: false, create: false, update: false, delete: false },
+    profile: { view: true, create: false, update: true, delete: false },
+  },
+  department_member: {
+    dashboard: { view: true, create: false, update: false, delete: false },
+    branches: { view: false, create: false, update: false, delete: false },
+    users: { view: false, create: false, update: false, delete: false },
+    members: { view: false, create: false, update: false, delete: false },
+    departments: { view: true, create: false, update: false, delete: false },
+    finances: { view: false, create: false, update: false, delete: false },
+    services: { view: false, create: false, update: false, delete: false },
+    events: { view: false, create: false, update: false, delete: false },
+    reports: { view: false, create: false, update: false, delete: false },
+    settings: { view: false, create: false, update: false, delete: false },
+    profile: { view: true, create: false, update: true, delete: false },
+  },
+};
+
+export const hasModulePermission = (
+  role: Role,
+  module: ModulePermissionKey,
+  action: ModulePermissionAction
+): boolean => {
+  if (role === 'superadmin') {
+    return true;
+  }
+
+  try {
+    const customRaw = localStorage.getItem('ecnd.custom_permissions');
+    if (customRaw) {
+      const customMap = JSON.parse(customRaw);
+      if (customMap && customMap[module]) {
+        return !!customMap[module][action];
+      }
+    }
+  } catch (e) {
+    // Ignore
+  }
+
+  try {
+    const raw = localStorage.getItem('ecnd.role_permissions');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const roleMap = parsed[role];
+      if (roleMap && roleMap[module]) {
+        return !!roleMap[module][action];
+      }
+    }
+  } catch (e) {
+    // Ignore
+  }
+
+  const defaultRoleMap = defaultRolePermissions[role as Exclude<Role, 'superadmin'>];
+  if (defaultRoleMap && defaultRoleMap[module]) {
+    return !!defaultRoleMap[module][action];
+  }
+
+  return false;
 };
 
 export const roleAccessScope: Record<Role, AccessScope> = {
   superadmin: 'global',
-  admin: 'global',
+  admin: 'branch',
   department_manager: 'department',
   department_member: 'read_limited',
 };
@@ -64,13 +132,31 @@ export const canAccess = (role: Role, allowedRoles: Role[]) => {
   return allowedRoles.includes(role);
 };
 
-export const hasPermission = (role: Role, permission: Permission) => {
-  const permissions = rolePermissions[role];
-  if (permissions === ALL_PERMISSIONS) {
+export const hasPermission = (role: Role, permission: Permission): boolean => {
+  if (role === 'superadmin') {
     return true;
   }
 
-  return permissions.includes(permission);
+  const parts = permission.split(':');
+  const moduleKey = parts[0] as ModulePermissionKey;
+  const actionStr = parts[1];
+
+  let action: ModulePermissionAction = 'view';
+  if (actionStr === 'manage') {
+    return (
+      hasModulePermission(role, moduleKey, 'create') ||
+      hasModulePermission(role, moduleKey, 'update') ||
+      hasModulePermission(role, moduleKey, 'delete')
+    );
+  } else if (actionStr === 'create') {
+    action = 'create';
+  } else if (actionStr === 'update') {
+    action = 'update';
+  } else if (actionStr === 'delete') {
+    action = 'delete';
+  }
+
+  return hasModulePermission(role, moduleKey, action);
 };
 
 export const filterNavItemsForRole = (items: NavItem[], role: Role) => {
@@ -101,7 +187,7 @@ const navItemPermissionMap: Record<NavItem['key'], Permission> = {
 };
 
 export const hasBranchAccess = (user: Profile, branchId: string) => {
-  if (user.role === 'superadmin' || user.role === 'admin') {
+  if (user.role === 'superadmin') {
     return true;
   }
 
@@ -121,7 +207,7 @@ export const hasDepartmentAccess = (user: Profile, departmentId: string) => {
 };
 
 export const restrictBranchesByRole = (items: Branch[], user: Profile) => {
-  if (user.role === 'superadmin' || user.role === 'admin') {
+  if (user.role === 'superadmin') {
     return items;
   }
 
@@ -133,8 +219,12 @@ export const restrictDepartmentsByRole = (
   user: Profile,
   relations?: UserDepartmentRelation[],
 ) => {
-  if (user.role === 'superadmin' || user.role === 'admin') {
+  if (user.role === 'superadmin') {
     return items;
+  }
+
+  if (user.role === 'admin') {
+    return items.filter((department) => department.branchId === user.branchId);
   }
 
   if (relations) {
@@ -149,7 +239,7 @@ export const restrictDepartmentsByRole = (
 };
 
 export const restrictFinancesByRole = (items: FinanceRecord[], user: Profile) => {
-  if (user.role === 'superadmin' || user.role === 'admin') {
+  if (user.role === 'superadmin') {
     return items;
   }
 
@@ -157,7 +247,7 @@ export const restrictFinancesByRole = (items: FinanceRecord[], user: Profile) =>
 };
 
 export const restrictEventsByRole = (items: Event[], user: Profile) => {
-  if (user.role === 'superadmin' || user.role === 'admin') {
+  if (user.role === 'superadmin') {
     return items;
   }
 
@@ -165,7 +255,7 @@ export const restrictEventsByRole = (items: Event[], user: Profile) => {
 };
 
 export const restrictReportsByRole = (items: Report[], user: Profile) => {
-  if (user.role === 'superadmin' || user.role === 'admin') {
+  if (user.role === 'superadmin') {
     return items;
   }
 

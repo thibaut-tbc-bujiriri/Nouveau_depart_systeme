@@ -13,6 +13,7 @@ type MemberPayload = {
   joinedAt: string;
   status: string;
   departmentIds: string[];
+  avatarUrl?: string;
 };
 
 type RequestBody =
@@ -198,6 +199,7 @@ Deno.serve(async (req) => {
           email: body.payload.email?.trim() || null,
           joined_at: body.payload.joinedAt,
           status: body.payload.status,
+          avatar_url: body.payload.avatarUrl || null,
         })
         .select("id")
         .single();
@@ -243,6 +245,7 @@ Deno.serve(async (req) => {
           email: body.payload.email?.trim() || null,
           joined_at: body.payload.joinedAt,
           status: body.payload.status,
+          avatar_url: body.payload.avatarUrl !== undefined ? body.payload.avatarUrl : null,
         })
         .eq("id", body.memberId);
 

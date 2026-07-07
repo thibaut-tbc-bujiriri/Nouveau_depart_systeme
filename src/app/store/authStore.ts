@@ -1,4 +1,4 @@
-﻿import type { Session, User } from '@supabase/supabase-js';
+import type { Session, User } from '@supabase/supabase-js';
 import type { Profile } from '@/types';
 import { create } from 'zustand';
 import { getSession, signInWithPassword, signOut } from '@/services/auth.service';
@@ -18,6 +18,44 @@ interface AuthState {
   clearError: () => void;
 }
 
+async function syncPermissionsForUser(userId: string) {
+  try {
+    const { supabase } = await import('@/lib/supabaseClient');
+    const { mapAppSettingsRowToStoredSettings } = await import('@/hooks/useSettingsData');
+    const { persistRolePermissionsInLocalStorage } = await import('@/hooks/useSettingsData');
+
+    const { data: globalData, error } = await supabase
+      .from('app_settings')
+      .select('*')
+      .is('branch_id', null)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') {
+      return;
+    }
+
+    if (globalData) {
+      const mapped = mapAppSettingsRowToStoredSettings(globalData as Record<string, unknown>);
+      if (mapped.language) localStorage.setItem('ecnd.pref_language', mapped.language);
+      if (mapped.currency) localStorage.setItem('ecnd.pref_currency', mapped.currency);
+      if (mapped.exchangeRate) localStorage.setItem('ecnd.pref_exchange_rate', String(mapped.exchangeRate));
+      
+      if (mapped.modulePermissions) {
+        persistRolePermissionsInLocalStorage(mapped.modulePermissions);
+      }
+      
+      if (mapped.userPermissions && mapped.userPermissions[userId]) {
+        localStorage.setItem('ecnd.custom_permissions', JSON.stringify(mapped.userPermissions[userId]));
+      } else {
+        localStorage.removeItem('ecnd.custom_permissions');
+      }
+      window.dispatchEvent(new Event('storage'));
+    }
+  } catch (err) {
+    console.error('Error syncing permissions:', err);
+  }
+}
+
 async function resolveProfileFromSession(session: Session | null) {
   if (!session?.user) {
     return { profile: null, fetchError: null as string | null };
@@ -25,6 +63,9 @@ async function resolveProfileFromSession(session: Session | null) {
 
   try {
     const profile = await getCurrentProfile(session.user.id);
+    if (profile) {
+      await syncPermissionsForUser(session.user.id);
+    }
     return { profile, fetchError: null as string | null };
   } catch (error) {
     return {

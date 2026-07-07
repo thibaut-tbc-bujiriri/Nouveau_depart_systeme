@@ -67,7 +67,10 @@ export function useUsersManagement() {
     void load();
   }, [load]);
 
-  const saveUserAccess = async (userId: string, values: { role: Role; branchId: string; departmentIds: string[] }) => {
+  const saveUserAccess = async (
+    userId: string,
+    values: { role: Role; branchId: string; departmentIds: string[]; avatarUrl?: string | null; status?: string },
+  ) => {
     setIsSaving(true);
     setError(null);
 
@@ -109,6 +112,8 @@ export function useUsersManagement() {
     role: Role;
     branchId: string;
     departmentIds: string[];
+    avatarUrl?: string | null;
+    status?: string;
   }) => {
     setIsCreating(true);
     setError(null);

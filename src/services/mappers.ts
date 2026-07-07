@@ -1,4 +1,4 @@
-﻿import type { Branch, ChurchMember, Department, Profile } from '@/types';
+import type { Branch, ChurchMember, Department, Profile } from '@/types';
 import type { BranchRow, ChurchMemberRow, DepartmentRow, ProfileRow } from '@/services/types';
 
 export function mapProfileRowToProfile(row: ProfileRow, departmentIds: string[]): Profile {
@@ -27,11 +27,13 @@ export function mapBranchRowToBranch(row: BranchRow, memberCount = 0, department
     name: row.name,
     city: row.city ?? '-',
     country: row.country ?? 'RDC',
-    pastorName: row.pastor_name ?? 'A definir',
+    pastorName: row.profiles?.full_name ?? row.pastor_name ?? 'A definir',
+    pastorId: row.pastor_id ?? undefined,
     createdAt: row.created_at,
     memberCount,
     departmentCount,
     isActive: row.is_active ?? true,
+    avatarUrl: row.avatar_url ?? undefined,
   };
 }
 
@@ -59,6 +61,7 @@ export function mapChurchMemberRowToMember(row: ChurchMemberRow, departmentIds: 
     departmentIds,
     joinedAt: row.joined_at ?? new Date().toISOString(),
     status: row.status === 'inactive' ? 'inactive' : 'active',
+    avatarUrl: row.avatar_url ?? undefined,
   };
 }
 

@@ -4,6 +4,7 @@ import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import { useBranches } from '@/hooks/useBranches';
 import { useServicesData } from '@/hooks/useServicesData';
+import { hasModulePermission } from '@/lib/permissions';
 import type { Service } from '@/types';
 import { formatDate } from '@/utils/format';
 import { useMemo, useState } from 'react';
@@ -42,7 +43,9 @@ export function ServicesPage() {
 
   const role = user?.role;
   const branchId = user?.branchId ?? '';
-  const canManage = role === 'superadmin' || role === 'admin';
+  const canCreate = user ? hasModulePermission(user.role, 'services', 'create') : false;
+  const canUpdate = user ? hasModulePermission(user.role, 'services', 'update') : false;
+  const canDelete = user ? hasModulePermission(user.role, 'services', 'delete') : false;
   const scopedServices = useMemo(
     () => services.filter((service) => (role === 'superadmin' ? true : service.branchId === branchId)),
     [branchId, role, services],
@@ -126,7 +129,7 @@ export function ServicesPage() {
       <PageHeader
         title="Cultes / Services"
         description="Planification des cultes et suivi de la frequentation."
-        actions={canManage ? <AppButton onClick={openCreateModal}>Programmer un service</AppButton> : undefined}
+        actions={canCreate ? <AppButton onClick={openCreateModal}>Programmer un service</AppButton> : undefined}
       >
         <SearchInput value={query} onChange={setQuery} placeholder="Rechercher un service..." />
       </PageHeader>
@@ -157,19 +160,25 @@ export function ServicesPage() {
             {
               key: 'actions',
               label: 'Actions',
-              render: (service) =>
-                canManage ? (
+              render: (service) => {
+                const showActions = canUpdate || canDelete;
+                return showActions ? (
                   <div className="flex gap-2">
-                    <AppButton size="sm" variant="secondary" onClick={() => openEditModal(service)}>
-                      Modifier
-                    </AppButton>
-                    <AppButton size="sm" variant="danger" onClick={() => setDeleteId(service.id)}>
-                      Supprimer
-                    </AppButton>
+                    {canUpdate && (
+                      <AppButton size="sm" variant="secondary" onClick={() => openEditModal(service)}>
+                        Modifier
+                      </AppButton>
+                    )}
+                    {canDelete && (
+                      <AppButton size="sm" variant="danger" onClick={() => setDeleteId(service.id)}>
+                        Supprimer
+                      </AppButton>
+                    )}
                   </div>
                 ) : (
                   '-'
-                ),
+                );
+              },
             },
           ]}
         />

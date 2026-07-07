@@ -6,6 +6,7 @@ import { useBranches } from '@/hooks/useBranches';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useEventsData } from '@/hooks/useEventsData';
 import type { Event } from '@/types';
+import { hasModulePermission } from '@/lib/permissions';
 import { formatDate } from '@/utils/format';
 import { restrictEventsByRole } from '@/utils/permissions';
 import { useEffect, useMemo, useState } from 'react';
@@ -46,7 +47,9 @@ export function EventsPage() {
 
   const role = user?.role;
   const branchId = user?.branchId ?? '';
-  const canManage = role === 'superadmin' || role === 'admin' || role === 'department_manager';
+  const canCreate = user ? hasModulePermission(user.role, 'events', 'create') : false;
+  const canUpdate = user ? hasModulePermission(user.role, 'events', 'update') : false;
+  const canDelete = user ? hasModulePermission(user.role, 'events', 'delete') : false;
   const scopedEvents = useMemo(() => (user ? restrictEventsByRole(events, user) : []), [events, user]);
   const filteredEvents = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -143,7 +146,7 @@ export function EventsPage() {
       <PageHeader
         title="Evenements"
         description="Suivi du calendrier des activites de l'eglise."
-        actions={canManage ? <AppButton onClick={openCreateModal}>Nouvel evenement</AppButton> : undefined}
+        actions={canCreate ? <AppButton onClick={openCreateModal}>Nouvel evenement</AppButton> : undefined}
       >
         <SearchInput value={query} onChange={setQuery} placeholder="Rechercher un evenement..." />
       </PageHeader>
@@ -182,19 +185,25 @@ export function EventsPage() {
             {
               key: 'actions',
               label: 'Actions',
-              render: (event) =>
-                canManage ? (
+              render: (event) => {
+                const showActions = canUpdate || canDelete;
+                return showActions ? (
                   <div className="flex gap-2">
-                    <AppButton size="sm" variant="secondary" onClick={() => openEditModal(event)}>
-                      Modifier
-                    </AppButton>
-                    <AppButton size="sm" variant="danger" onClick={() => setDeleteId(event.id)}>
-                      Supprimer
-                    </AppButton>
+                    {canUpdate && (
+                      <AppButton size="sm" variant="secondary" onClick={() => openEditModal(event)}>
+                        Modifier
+                      </AppButton>
+                    )}
+                    {canDelete && (
+                      <AppButton size="sm" variant="danger" onClick={() => setDeleteId(event.id)}>
+                        Supprimer
+                      </AppButton>
+                    )}
                   </div>
                 ) : (
                   '-'
-                ),
+                );
+              },
             },
           ]}
         />

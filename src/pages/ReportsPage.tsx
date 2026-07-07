@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useBranches } from '@/hooks/useBranches';
 import { useReportsData } from '@/hooks/useReportsData';
 import type { Report } from '@/types';
+import { hasModulePermission } from '@/lib/permissions';
 import { formatDate } from '@/utils/format';
 import { restrictReportsByRole } from '@/utils/permissions';
 import { useEffect, useMemo, useState } from 'react';
@@ -42,7 +43,9 @@ export function ReportsPage() {
 
   const role = user?.role;
   const branchId = user?.branchId ?? '';
-  const canManage = role === 'superadmin' || role === 'admin' || role === 'department_manager';
+  const canCreate = user ? hasModulePermission(user.role, 'reports', 'create') : false;
+  const canUpdate = user ? hasModulePermission(user.role, 'reports', 'update') : false;
+  const canDelete = user ? hasModulePermission(user.role, 'reports', 'delete') : false;
   const scopedReports = useMemo(() => (user ? restrictReportsByRole(reports, user) : []), [reports, user]);
   const filteredReports = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -133,7 +136,7 @@ export function ReportsPage() {
       <PageHeader
         title="Rapports"
         description="Rapports operationnels et financiers exportables."
-        actions={canManage ? <AppButton onClick={openCreateModal}>Generer un rapport</AppButton> : undefined}
+        actions={canCreate ? <AppButton onClick={openCreateModal}>Generer un rapport</AppButton> : undefined}
       >
         <SearchInput value={query} onChange={setQuery} placeholder="Rechercher un rapport..." />
       </PageHeader>
@@ -164,19 +167,25 @@ export function ReportsPage() {
             {
               key: 'actions',
               label: 'Actions',
-              render: (report) =>
-                canManage ? (
+              render: (report) => {
+                const showActions = canUpdate || canDelete;
+                return showActions ? (
                   <div className="flex gap-2">
-                    <AppButton size="sm" variant="secondary" onClick={() => openEditModal(report)}>
-                      Modifier
-                    </AppButton>
-                    <AppButton size="sm" variant="danger" onClick={() => setDeleteId(report.id)}>
-                      Supprimer
-                    </AppButton>
+                    {canUpdate && (
+                      <AppButton size="sm" variant="secondary" onClick={() => openEditModal(report)}>
+                        Modifier
+                      </AppButton>
+                    )}
+                    {canDelete && (
+                      <AppButton size="sm" variant="danger" onClick={() => setDeleteId(report.id)}>
+                        Supprimer
+                      </AppButton>
+                    )}
                   </div>
                 ) : (
                   '-'
-                ),
+                );
+              },
             },
           ]}
         />
