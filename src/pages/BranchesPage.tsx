@@ -1,9 +1,9 @@
 import { BranchAvatar, DataTable, EmptyState, LoadingState, PageHeader, StatCard } from '@/components/common';
-import { AppButton, AppInput, AppSelect, FormFieldWrapper, PhotoUpload, SearchInput } from '@/components/ui';
+import { AppButton, AppInput, FormFieldWrapper, PhotoUpload, SearchInput } from '@/components/ui';
 import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import { useBranches } from '@/hooks/useBranches';
-import { roleLabels } from '@/lib/permissions';
+import { cn } from '@/lib/cn';
 import { getActiveUsers, type ActiveUserOption } from '@/services/branches.service';
 import { restrictBranchesByRole } from '@/utils/permissions';
 import { uploadPhoto } from '@/utils/storage';
@@ -60,6 +60,8 @@ export function BranchesPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null | undefined>(undefined);
   const [activeUsers, setActiveUsers] = useState<ActiveUserOption[]>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     async function loadActiveUsers() {
@@ -90,6 +92,26 @@ export function BranchesPage() {
     );
   }, [activeUsers, form.pastorId]);
 
+  const filteredManagerOptions = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) {
+      return branchManagerOptions;
+    }
+    return branchManagerOptions.filter((u) => u.fullName.toLowerCase().includes(q));
+  }, [branchManagerOptions, searchQuery]);
+
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.custom-combobox-container')) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isDropdownOpen]);
+
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) {
@@ -105,6 +127,8 @@ export function BranchesPage() {
     setEditingId(null);
     setPhotoFile(undefined);
     setForm(initialBranchForm);
+    setIsDropdownOpen(false);
+    setSearchQuery('');
     setIsModalOpen(true);
   };
 
@@ -121,6 +145,8 @@ export function BranchesPage() {
       avatarUrl: branch.avatarUrl,
       pastorId: (branch as any).pastorId || '',
     });
+    setIsDropdownOpen(false);
+    setSearchQuery('');
     setIsModalOpen(true);
   };
 
@@ -297,25 +323,93 @@ export function BranchesPage() {
           </div>
           <FormFieldWrapper label="Responsable">
             {user.role === 'superadmin' ? (
-              <AppSelect
-                value={form.pastorId}
-                onChange={(event) => {
-                  const selectedUserId = event.target.value;
-                  const selectedUser = activeUsers.find((u) => u.id === selectedUserId);
-                  setForm((prev) => ({
-                    ...prev,
-                    pastorId: selectedUserId,
-                    pastorName: selectedUser ? selectedUser.fullName : '',
-                  }));
-                }}
-              >
-                <option value="">Selectionner un responsable</option>
-                {branchManagerOptions.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.fullName} ({roleLabels[user.role as keyof typeof roleLabels] || user.role}){user.email ? ` · ${user.email}` : ''}
-                  </option>
-                ))}
-              </AppSelect>
+              <div className="relative custom-combobox-container">
+                <button
+                  type="button"
+                  onClick={() => setIsDropdownOpen((prev) => !prev)}
+                  className="flex items-center justify-between w-full px-4 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 text-left cursor-pointer transition-all min-h-10"
+                >
+                  {(() => {
+                    const selected = activeUsers.find((u) => u.id === form.pastorId);
+                    if (selected) {
+                      return (
+                        <div className="flex items-center gap-2.5">
+                          {selected.avatarUrl ? (
+                            <img
+                              src={selected.avatarUrl}
+                              alt={selected.fullName}
+                              className="size-6 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="size-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-semibold text-slate-500">
+                              {selected.fullName.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <span className="text-slate-800 font-medium">{selected.fullName}</span>
+                        </div>
+                      );
+                    }
+                    return <span className="text-slate-400">Sélectionner un responsable</span>;
+                  })()}
+                  <span className="pointer-events-none">
+                    <svg className="size-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </span>
+                </button>
+
+                {isDropdownOpen && (
+                  <div className="absolute z-[100] mt-1 w-full bg-white border border-slate-200/80 rounded-2xl shadow-xl p-2 max-h-64 overflow-y-auto transition-all duration-200 animate-in fade-in slide-in-from-top-1">
+                    <input
+                      type="text"
+                      autoFocus
+                      className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 mb-2 focus:ring-1 focus:ring-cyan-500/20"
+                      placeholder="Rechercher un responsable..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <div className="space-y-0.5">
+                      {filteredManagerOptions.length === 0 ? (
+                        <div className="text-xs text-slate-400 p-3 text-center">Aucun responsable trouvé</div>
+                      ) : (
+                        filteredManagerOptions.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              setForm((prev) => ({
+                                ...prev,
+                                pastorId: item.id,
+                                pastorName: item.fullName,
+                              }));
+                              setIsDropdownOpen(false);
+                              setSearchQuery('');
+                            }}
+                            className={cn(
+                              "flex items-center gap-3 w-full text-left px-3 py-2 text-sm rounded-xl hover:bg-slate-50 transition-colors",
+                              form.pastorId === item.id ? "bg-cyan-50/60 text-cyan-600 font-semibold" : "text-slate-700 hover:text-slate-900"
+                            )}
+                          >
+                            {item.avatarUrl ? (
+                              <img
+                                src={item.avatarUrl}
+                                alt={item.fullName}
+                                className="size-7 rounded-full object-cover border border-slate-100"
+                              />
+                            ) : (
+                              <div className="size-7 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-semibold text-slate-500 border border-slate-200/60">
+                                {item.fullName.slice(0, 2).toUpperCase()}
+                              </div>
+                            )}
+                            <span>{item.fullName}</span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
               <AppInput
                 value={form.pastorName || 'A definir'}

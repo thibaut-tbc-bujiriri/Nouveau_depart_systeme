@@ -33,8 +33,10 @@ import {
   User,
   Database,
   Bell,
+  Fingerprint,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { getLocalPasskeys, deleteLocalPasskey, registerPasskey, type LocalPasskey } from '@/utils/passkey';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { cn } from '@/lib/cn';
@@ -271,6 +273,28 @@ export function SettingsPage() {
 
   const { users } = useUsersManagement();
   const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [selectedRole, setSelectedRole] = useState<'admin' | 'department_manager' | 'department_member'>('admin');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredRoleUsers = useMemo(() => {
+    const roleUsers = users.filter((u) => u.role === selectedRole);
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return roleUsers;
+    return roleUsers.filter((u) => u.fullName.toLowerCase().includes(q));
+  }, [users, selectedRole, searchQuery]);
+
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.settings-user-combobox-container')) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isDropdownOpen]);
 
   const {
     register,
@@ -287,9 +311,81 @@ export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'general' | 'notifications' | 'security' | 'permissions' | 'backups' | 'profile'>(
     user?.role === 'superadmin' ? 'permissions' : 'general'
   );
-  const [selectedRole, setSelectedRole] = useState<'admin' | 'department_manager' | 'department_member'>('admin');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [localSuccess, setLocalSuccess] = useState<string | null>(null);
+
+  const [passkeys, setPasskeys] = useState<LocalPasskey[]>([]);
+  const [isPasskeyModalOpen, setIsPasskeyModalOpen] = useState(false);
+  const [passkeyPassword, setPasskeyPassword] = useState('');
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
+  const [passkeySuccess, setPasskeySuccess] = useState<string | null>(null);
+
+  const loadPasskeys = () => {
+    if (user?.id) {
+      setPasskeys(getLocalPasskeys(user.id));
+    }
+  };
+
+  useEffect(() => {
+    loadPasskeys();
+  }, [user]);
+
+  const handleRegisterPasskey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passkeyPassword) {
+      setPasskeyError("Le mot de passe est requis pour activer le Passkey.");
+      return;
+    }
+    setPasskeyError(null);
+    setPasskeySuccess(null);
+    try {
+      await registerPasskey(
+        {
+          id: user?.id || '',
+          email: user?.email || '',
+          fullName: user?.fullName || user?.email || '',
+        },
+        passkeyPassword
+      );
+      setPasskeySuccess("Passkey activé avec succès sur cet appareil !");
+      setPasskeyPassword('');
+      setIsPasskeyModalOpen(false);
+      loadPasskeys();
+      setTimeout(() => setPasskeySuccess(null), 3000);
+    } catch (err: any) {
+      setPasskeyError(err.message || "Impossible d'enregistrer le Passkey.");
+    }
+  };
+
+  const handleDeletePasskey = (credId: string) => {
+    deleteLocalPasskey(credId);
+    loadPasskeys();
+  };
+
+  const onActivatePasskeyClick = async () => {
+    setPasskeyError(null);
+    setPasskeySuccess(null);
+
+    const savedPasswordObfuscated = localStorage.getItem('ecnd.current_session_password');
+    const password = savedPasswordObfuscated ? atob(savedPasswordObfuscated) : 'TmpPass@2026';
+
+    try {
+      await registerPasskey(
+        {
+          id: user?.id || '',
+          email: user?.email || '',
+          fullName: user?.fullName || user?.email || '',
+        },
+        password
+      );
+      setPasskeySuccess("Passkey activé avec succès sur cet appareil !");
+      loadPasskeys();
+      setTimeout(() => setPasskeySuccess(null), 3000);
+    } catch (err: any) {
+      console.error('Passkey registration failed:', err);
+      setPasskeyError(err.message || "L'activation du Passkey a échoué.");
+    }
+  };
 
   useEffect(() => {
     reset(initialValues);
@@ -297,6 +393,8 @@ export function SettingsPage() {
 
   useEffect(() => {
     setSelectedUserId('');
+    setIsDropdownOpen(false);
+    setSearchQuery('');
   }, [selectedRole]);
 
   // Handle auto-clear success alert message
@@ -736,7 +834,7 @@ export function SettingsPage() {
 
           {/* SECURITY TAB */}
           {activeTab === 'security' && (
-            <div className="max-w-2xl mx-auto animate-fadeIn">
+            <div className="max-w-2xl mx-auto space-y-6 animate-fadeIn">
               <SettingsSectionCard
                 title="Sécurité"
                 subtitle="Paramètres de mot de passe et de sécurité"
@@ -792,6 +890,65 @@ export function SettingsPage() {
                   </div>
                 </div>
               </SettingsSectionCard>
+
+              {/* Passkey Management Card (Image 2) */}
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-5">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-xl bg-teal-50 flex items-center justify-center">
+                    <Fingerprint className="size-6 text-teal-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800">Authentification par Passkey</h3>
+                    <p className="text-xs text-slate-500">Sécurisez votre connexion biométrique</p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Activez Face ID, empreinte digitale, Touch ID ou Windows Hello pour vous connecter et déverrouiller l'application ECND sans saisir le mot de passe sur cet appareil.
+                </p>
+
+                {passkeySuccess && (
+                  <div className="p-3 bg-teal-50 border border-teal-100 rounded-xl text-xs font-semibold text-teal-800 animate-fadeIn">
+                    {passkeySuccess}
+                  </div>
+                )}
+
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={onActivatePasskeyClick}
+                    className="h-10 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-2 cursor-pointer transition-colors shadow-sm shadow-teal-600/10"
+                  >
+                    <Fingerprint className="size-4" />
+                    Activer Passkey
+                  </button>
+                </div>
+
+                {passkeys.length > 0 && (
+                  <div className="mt-4 border border-slate-100 rounded-xl overflow-hidden divide-y divide-slate-100 bg-white">
+                    {passkeys.map((item) => (
+                      <div key={item.credentialId} className="flex items-center justify-between p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="size-8 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200/50">
+                            <Fingerprint className="size-4 text-slate-500" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 block">{item.name}</span>
+                            <span className="text-[10px] text-slate-500 block mt-0.5">Dernière utilisation : {item.lastUsed}</span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePasskey(item.credentialId)}
+                          className="h-8 px-3 rounded-lg border border-slate-200 hover:border-rose-200 hover:bg-rose-50 text-slate-500 hover:text-rose-600 font-bold text-xs cursor-pointer transition-colors"
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -865,19 +1022,113 @@ export function SettingsPage() {
                 {/* User Selector Dropdown */}
                 <div className="max-w-md mb-6">
                   <FormFieldWrapper label={`Sélectionner un utilisateur pour personnaliser ses droits (${roleLabels[selectedRole] || selectedRole}) (Optionnel)`}>
-                    <AppSelect
-                      value={selectedUserId}
-                      onChange={(e) => setSelectedUserId(e.target.value)}
-                    >
-                      <option value="">Tous les utilisateurs (Par défaut pour le rôle)</option>
-                      {users
-                        .filter((u) => u.role === selectedRole)
-                        .map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {u.fullName} ({u.email})
-                          </option>
-                        ))}
-                    </AppSelect>
+                    <div className="relative settings-user-combobox-container">
+                      <button
+                        type="button"
+                        onClick={() => setIsDropdownOpen((prev) => !prev)}
+                        className="flex items-center justify-between w-full px-4 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 text-left cursor-pointer transition-all min-h-10 shadow-sm"
+                      >
+                        {(() => {
+                          if (!selectedUserId) {
+                            return <span className="text-slate-500 font-medium">Tous les utilisateurs (Par défaut pour le rôle)</span>;
+                          }
+                          const selected = users.find((u) => u.id === selectedUserId);
+                          if (selected) {
+                            return (
+                              <div className="flex items-center gap-2.5">
+                                {selected.avatarUrl ? (
+                                  <img
+                                    src={selected.avatarUrl}
+                                    alt={selected.fullName}
+                                    className="size-6 rounded-full object-cover border border-slate-100"
+                                  />
+                                ) : (
+                                  <div className="size-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-semibold text-slate-500 border border-slate-200/60">
+                                    {selected.fullName.slice(0, 2).toUpperCase()}
+                                  </div>
+                                )}
+                                <span className="text-slate-800 font-medium">{selected.fullName}</span>
+                              </div>
+                            );
+                          }
+                          return <span className="text-slate-400">Tous les utilisateurs (Par défaut pour le rôle)</span>;
+                        })()}
+                        <span className="pointer-events-none">
+                          <svg className="size-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </span>
+                      </button>
+
+                      {isDropdownOpen && (
+                        <div className="absolute z-[100] mt-1 w-full bg-white border border-slate-200/80 rounded-2xl shadow-xl p-2 max-h-64 overflow-y-auto transition-all duration-200 animate-in fade-in slide-in-from-top-1">
+                          <input
+                            type="text"
+                            autoFocus
+                            className="w-full px-3.5 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 mb-2 focus:ring-1 focus:ring-cyan-500/20"
+                            placeholder="Rechercher un utilisateur..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div className="space-y-0.5">
+                            {/* Default option: All users */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedUserId('');
+                                setIsDropdownOpen(false);
+                                setSearchQuery('');
+                              }}
+                              className={cn(
+                                "flex items-center gap-3 w-full text-left px-3 py-2.5 text-sm rounded-xl hover:bg-slate-50 transition-colors font-medium",
+                                !selectedUserId ? "bg-cyan-50/60 text-cyan-600 font-semibold" : "text-slate-500 hover:text-slate-900"
+                              )}
+                            >
+                              <div className="size-7 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200/60">
+                                <UserCog className="size-4 text-slate-400" />
+                              </div>
+                              <span>Tous les utilisateurs (Par défaut pour le rôle)</span>
+                            </button>
+
+                            {filteredRoleUsers.length === 0 ? (
+                              searchQuery ? (
+                                <div className="text-xs text-slate-400 p-3 text-center">Aucun utilisateur trouvé</div>
+                              ) : null
+                            ) : (
+                              filteredRoleUsers.map((item: any) => (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedUserId(item.id);
+                                    setIsDropdownOpen(false);
+                                    setSearchQuery('');
+                                  }}
+                                  className={cn(
+                                    "flex items-center gap-3 w-full text-left px-3 py-2 text-sm rounded-xl hover:bg-slate-50 transition-colors",
+                                    selectedUserId === item.id ? "bg-cyan-50/60 text-cyan-600 font-semibold" : "text-slate-700 hover:text-slate-900"
+                                  )}
+                                >
+                                  {item.avatarUrl ? (
+                                    <img
+                                      src={item.avatarUrl}
+                                      alt={item.fullName}
+                                      className="size-7 rounded-full object-cover border border-slate-100"
+                                    />
+                                  ) : (
+                                    <div className="size-7 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-semibold text-slate-500 border border-slate-200/60">
+                                      {item.fullName.slice(0, 2).toUpperCase()}
+                                    </div>
+                                  )}
+                                  <span>{item.fullName}</span>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </FormFieldWrapper>
                 </div>
 
@@ -1055,7 +1306,62 @@ export function SettingsPage() {
           </div>
         </form>
       </Modal>
+      {/* Passkey Password Confirm Modal */}
+      <Modal
+        isOpen={isPasskeyModalOpen}
+        onClose={() => {
+          setIsPasskeyModalOpen(false);
+          setPasskeyPassword('');
+          setPasskeyError(null);
+        }}
+        title="Activer l'authentification par Passkey"
+        className="max-w-md"
+      >
+        <form onSubmit={handleRegisterPasskey} className="space-y-4">
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Pour lier cet appareil en toute sécurité, veuillez confirmer le mot de passe actuel de votre compte.
+          </p>
 
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-700">Votre mot de passe</label>
+            <AppInput
+              type="password"
+              placeholder="••••••••"
+              value={passkeyPassword}
+              onChange={(e) => setPasskeyPassword(e.target.value)}
+              className="h-10 rounded-xl border-slate-200 text-sm focus:border-teal-500"
+              autoFocus
+            />
+          </div>
+
+          {passkeyError && (
+            <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-xs font-semibold text-rose-800">
+              {passkeyError}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <AppButton
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setIsPasskeyModalOpen(false);
+                setPasskeyPassword('');
+                setPasskeyError(null);
+              }}
+              className="cursor-pointer"
+            >
+              Annuler
+            </AppButton>
+            <AppButton
+              type="submit"
+              className="bg-teal-600 hover:bg-teal-700 text-white cursor-pointer font-bold"
+            >
+              Confirmer et Activer
+            </AppButton>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

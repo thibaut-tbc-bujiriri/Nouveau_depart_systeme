@@ -1,4 +1,4 @@
-﻿import { cn } from '@/lib/cn';
+import { cn } from '@/lib/cn';
 import type { ReactNode } from 'react';
 
 interface DataTableColumn<T> {
@@ -74,11 +74,9 @@ export function EmptyState({ title, description }: { title: string; description?
   );
 }
 
+import { AppLoader } from './AppLoader';
+
 export function LoadingState({ message = 'Chargement...' }: { message?: string }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-      {message}
-    </div>
-  );
+  return <AppLoader overlay={false} message={message} />;
 }
 

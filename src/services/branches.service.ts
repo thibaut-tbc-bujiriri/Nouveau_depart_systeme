@@ -19,12 +19,13 @@ export interface ActiveUserOption {
   fullName: string;
   role: string;
   email: string;
+  avatarUrl?: string | null;
 }
 
 export async function getActiveUsers(): Promise<ActiveUserOption[]> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, email, role, status')
+    .select('id, full_name, email, role, status, avatar_url')
     .eq('status', 'active')
     .order('full_name', { ascending: true });
 
@@ -37,6 +38,7 @@ export async function getActiveUsers(): Promise<ActiveUserOption[]> {
     fullName: row.full_name ?? 'Sans nom',
     role: row.role,
     email: row.email ?? '',
+    avatarUrl: row.avatar_url,
   }));
 }
 

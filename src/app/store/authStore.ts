@@ -229,6 +229,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         fallbackMissingProfileMessage: 'Connexion reussie, mais profil introuvable.',
       });
 
+      if (data.session) {
+        localStorage.setItem('ecnd.current_session_password', btoa(password));
+      }
+
       set({
         session,
         authUser: data.user,
@@ -254,6 +258,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   logout: async () => {
     await signOut();
+    localStorage.removeItem('ecnd.current_session_password');
     set({
       session: null,
       authUser: null,

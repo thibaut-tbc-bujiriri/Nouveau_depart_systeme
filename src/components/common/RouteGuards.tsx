@@ -1,4 +1,4 @@
-﻿import { LoadingState } from '@/components/common';
+import { AppLoader } from './AppLoader';
 import { useAuth } from '@/hooks/useAuth';
 import { canAccess, hasPermission, type Permission } from '@/lib/permissions';
 import type { Role } from '@/types';
@@ -13,7 +13,7 @@ export function ProtectedRoute({ allowedRoles, requiredPermission }: ProtectedRo
   const { isAuthenticated, isLoading, user } = useAuth();
 
   if (isLoading) {
-    return <LoadingState message="Verification de votre session..." />;
+    return <AppLoader message="Verification de votre session..." />;
   }
 
   if (!isAuthenticated || !user) {
