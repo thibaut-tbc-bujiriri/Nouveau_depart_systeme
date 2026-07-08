@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { mapDepartmentRowToDepartment } from '@/services/mappers';
 import type { DepartmentRow } from '@/services/types';
 import type { Department } from '@/types';
+import { createNotification } from '@/services/notificationsService';
 
 export interface DepartmentResolved extends Department {
   responsibleName?: string;
@@ -70,9 +71,77 @@ export async function createDepartment(payload: DepartmentUpsertInput): Promise<
   if (error) {
     throw error;
   }
+
+  try {
+    await createNotification({
+      title: "Nouveau département créé",
+      message: `Le département "${payload.name}" a été créé.`,
+      type: "department_created",
+      priority: "normal",
+      targetExtensionId: payload.branchId,
+      link: "/departements"
+    });
+
+    if (payload.managerId) {
+      const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', payload.managerId).maybeSingle();
+      
+      await createNotification({
+        title: "Responsable département affecté",
+        message: `${profile?.full_name || 'Un utilisateur'} est maintenant responsable du département ${payload.name}.`,
+        type: "department_responsible_assigned",
+        priority: "normal",
+        targetExtensionId: payload.branchId,
+        link: "/departements"
+      });
+
+      await createNotification({
+        title: "Affectation de responsabilité",
+        message: `Vous avez été désigné(e) comme responsable du département ${payload.name}.`,
+        type: "department_responsible_assigned",
+        priority: "normal",
+        targetUserId: payload.managerId,
+        link: "/departements"
+      });
+    }
+  } catch (err) {
+    console.error("Failed to create department notifications:", err);
+  }
+
+  try {
+    const { createActivityLog } = await import('@/services/activityLogService');
+    await createActivityLog({
+      actionType: 'department_created',
+      module: 'departments',
+      title: 'Création d\'un département',
+      description: `Le département "${payload.name}" a été créé.`,
+      status: 'success',
+      targetName: payload.name,
+      extensionId: payload.branchId
+    });
+
+    if (payload.managerId) {
+      await createActivityLog({
+        actionType: 'department_responsible_assigned',
+        module: 'departments',
+        title: 'Responsable de département affecté',
+        description: `Un responsable a été affecté au département "${payload.name}".`,
+        status: 'success',
+        extensionId: payload.branchId
+      });
+    }
+  } catch (err) {
+    console.error("Log department creation error:", err);
+  }
 }
 
 export async function updateDepartment(departmentId: string, payload: DepartmentUpsertInput): Promise<void> {
+  const { data: oldDept } = await supabase
+    .from('departments')
+    .select('manager_profile_id')
+    .eq('id', departmentId)
+    .maybeSingle();
+  const oldManagerId = oldDept?.manager_profile_id;
+
   const { error } = await supabase
     .from('departments')
     .update({
@@ -86,6 +155,70 @@ export async function updateDepartment(departmentId: string, payload: Department
 
   if (error) {
     throw error;
+  }
+
+  try {
+    await createNotification({
+      title: "Département mis à jour",
+      message: `Le département "${payload.name}" a été mis à jour.`,
+      type: "department_updated",
+      priority: "normal",
+      targetExtensionId: payload.branchId,
+      link: "/departements"
+    });
+
+    if (payload.managerId && payload.managerId !== oldManagerId) {
+      const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', payload.managerId).maybeSingle();
+      
+      await createNotification({
+        title: "Responsable département affecté",
+        message: `${profile?.full_name || 'Un utilisateur'} est maintenant responsable du département ${payload.name}.`,
+        type: "department_responsible_assigned",
+        priority: "normal",
+        targetExtensionId: payload.branchId,
+        link: "/departements"
+      });
+
+      await createNotification({
+        title: "Affectation de responsabilité",
+        message: `Vous avez été désigné(e) comme responsable du département ${payload.name}.`,
+        type: "department_responsible_assigned",
+        priority: "normal",
+        targetUserId: payload.managerId,
+        link: "/departements"
+      });
+    }
+  } catch (err) {
+    console.error("Failed to create department update notifications:", err);
+  }
+
+  try {
+    const { createActivityLog } = await import('@/services/activityLogService');
+    await createActivityLog({
+      actionType: 'department_updated',
+      module: 'departments',
+      title: 'Mise à jour d\'un département',
+      description: `Le département "${payload.name}" a été modifié.`,
+      status: 'success',
+      targetId: departmentId,
+      targetName: payload.name,
+      extensionId: payload.branchId,
+      departmentId: departmentId
+    });
+
+    if (payload.managerId && payload.managerId !== oldManagerId) {
+      await createActivityLog({
+        actionType: 'department_responsible_assigned',
+        module: 'departments',
+        title: 'Responsable de département affecté',
+        description: `Le responsable du département "${payload.name}" a été modifié ou désigné.`,
+        status: 'success',
+        extensionId: payload.branchId,
+        departmentId: departmentId
+      });
+    }
+  } catch (err) {
+    console.error("Log department update error:", err);
   }
 }
 

@@ -161,3 +161,22 @@ export interface DashboardDepartmentPerformanceRow {
   finance_total_90d: number;
 }
 
+export interface NotificationRow {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  priority: string;
+  target_role: string | null;
+  target_user_id: string | null;
+  target_extension_id: string | null;
+  target_department_id: string | null;
+  created_by: string | null;
+  link: string | null;
+  metadata: Record<string, any> | null;
+  is_read: boolean;
+  read_at: string | null;
+  created_at: string;
+}
+
+

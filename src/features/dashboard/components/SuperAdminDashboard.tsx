@@ -1,4 +1,4 @@
-import { AdvancedStatCard } from '@/components/dashboard';
+import { AdvancedStatCard, DailyVerseCard } from '@/components/dashboard';
 import { type UseDashboardStatsResult } from '@/hooks/useDashboardStats';
 import { useBranches } from '@/hooks/useBranches';
 import { formatDate } from '@/utils/format';
@@ -40,7 +40,7 @@ const levelColorMap = {
   warning: 'bg-amber-50 text-amber-600',
 };
 
-export function SuperAdminDashboard({ user: _user, dashboard }: SuperAdminDashboardProps) {
+export function SuperAdminDashboard({ user, dashboard }: SuperAdminDashboardProps) {
   const { branches } = useBranches();
   const branchesData = dashboard.branchesData || [];
   const activities = dashboard.recentActivities || [];
@@ -50,6 +50,8 @@ export function SuperAdminDashboard({ user: _user, dashboard }: SuperAdminDashbo
 
   return (
     <div className="space-y-6">
+      <DailyVerseCard user={user} />
+
       {/* 4 Premium SaaS Stat Cards */}
       <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <AdvancedStatCard

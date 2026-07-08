@@ -1,14 +1,14 @@
-﻿import {
+import {
   ActivityFeed,
   AdvancedStatCard,
   MiniCalendar,
   QuickActions,
   SectionCard,
-  SpiritualFocusCard,
+  DailyVerseCard,
   UpcomingEventsCard,
   WeeklyProgramCard,
 } from '@/components/dashboard';
-import { getSpiritualFocus, getWeeklyProgram } from '@/features/dashboard/lib/dashboardSelectors';
+import { getWeeklyProgram } from '@/features/dashboard/lib/dashboardSelectors';
 import { type UseDashboardStatsResult } from '@/hooks/useDashboardStats';
 import type { Profile } from '@/types';
 import { BellRing, CalendarDays, UsersRound } from 'lucide-react';
@@ -22,12 +22,11 @@ export function DepartmentMemberDashboard({ user, dashboard }: DepartmentMemberD
   const department = dashboard.membersByDepartment.find((item) => user.departmentIds.includes(item.departmentId));
   const activities = dashboard.recentActivities.slice(0, 5);
   const upcoming = dashboard.upcomingEvents.slice(0, 4);
-  const spiritual = getSpiritualFocus();
   const weeklyProgram = getWeeklyProgram();
 
   return (
     <div className="space-y-6">
-      <SpiritualFocusCard content={spiritual} />
+      <DailyVerseCard user={user} />
 
       <section className="grid gap-4 md:grid-cols-3">
         <AdvancedStatCard label="Mon departement" value={department?.departmentName ?? 'N/A'} subtitle="Service principal" icon={UsersRound} trend={2.3} />

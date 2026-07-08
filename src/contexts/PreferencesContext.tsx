@@ -10,6 +10,8 @@ interface PreferencesContextType {
   setCurrency: (curr: Currency) => void;
   exchangeRate: number;
   setExchangeRate: (rate: number) => void;
+  theme: 'light' | 'dark';
+  setTheme: (theme: 'light' | 'dark') => void;
   t: (key: string) => string;
   formatMoney: (amountInUsd: number) => string;
 }
@@ -220,6 +222,10 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return rate ? Number(rate) : 2500;
   });
 
+  const [theme, setThemeState] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('ecnd.pref_theme') as 'light' | 'dark') || 'light';
+  });
+
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
     localStorage.setItem('ecnd.pref_language', lang);
@@ -238,14 +244,31 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
     window.dispatchEvent(new Event('storage'));
   };
 
+  const setTheme = (nextTheme: 'light' | 'dark') => {
+    setThemeState(nextTheme);
+    localStorage.setItem('ecnd.pref_theme', nextTheme);
+    window.dispatchEvent(new Event('storage'));
+  };
+
+  // Sync document element class for dark mode
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
   useEffect(() => {
     const handleStorageChange = () => {
       const lang = (localStorage.getItem('ecnd.pref_language') as Language) || 'fr';
       const curr = (localStorage.getItem('ecnd.pref_currency') as Currency) || 'USD';
       const rate = localStorage.getItem('ecnd.pref_exchange_rate');
+      const storedTheme = (localStorage.getItem('ecnd.pref_theme') as 'light' | 'dark') || 'light';
       
       setLanguageState(lang);
       setCurrencyState(curr);
+      setThemeState(storedTheme);
       if (rate) setExchangeRateState(Number(rate));
     };
 
@@ -275,6 +298,8 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setCurrency,
         exchangeRate,
         setExchangeRate,
+        theme,
+        setTheme,
         t,
         formatMoney,
       }}

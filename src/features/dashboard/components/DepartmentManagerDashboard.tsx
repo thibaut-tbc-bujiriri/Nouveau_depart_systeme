@@ -1,4 +1,4 @@
-﻿import {
+import {
   ActivityFeed,
   AdvancedStatCard,
   AlertsPanel,
@@ -8,11 +8,11 @@
   MiniCalendar,
   QuickActions,
   ReportList,
-  SpiritualFocusCard,
+  DailyVerseCard,
   UpcomingEventsCard,
   WeeklyProgramCard,
 } from '@/components/dashboard';
-import { getSpiritualFocus, getWeeklyProgram } from '@/features/dashboard/lib/dashboardSelectors';
+import { getWeeklyProgram } from '@/features/dashboard/lib/dashboardSelectors';
 import { type UseDashboardStatsResult } from '@/hooks/useDashboardStats';
 import type { Profile } from '@/types';
 import { ClipboardCheck, ListChecks, UserRoundCheck } from 'lucide-react';
@@ -36,7 +36,6 @@ export function DepartmentManagerDashboard({ user, dashboard }: DepartmentManage
   const upcoming = dashboard.upcomingEvents.slice(0, 4);
   const alerts = dashboard.openAlerts.slice(0, 2);
   const performance = dashboard.departmentPerformance.filter((item) => item.departmentId === departmentId);
-  const spiritual = getSpiritualFocus();
   const weeklyProgram = getWeeklyProgram();
 
   const rolesDistribution = [
@@ -46,7 +45,7 @@ export function DepartmentManagerDashboard({ user, dashboard }: DepartmentManage
 
   return (
     <div className="space-y-6">
-      <SpiritualFocusCard content={spiritual} />
+      <DailyVerseCard user={user} />
 
       <section className="grid gap-4 md:grid-cols-3">
         <AdvancedStatCard label="Departement" value={currentDepartment?.departmentName ?? 'Non defini'} subtitle="Vue responsable" icon={ClipboardCheck} trend={7.2} />

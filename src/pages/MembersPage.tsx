@@ -1,5 +1,5 @@
 import { Avatar, BranchBadge, DataTable, DepartmentBadge, EmptyState, LoadingState, PageHeader } from '@/components/common';
-import { AppButton, AppInput, AppSelect, FormFieldWrapper, PhotoUpload, SearchInput } from '@/components/ui';
+import { AppButton, AppInput, AppSelect, FormFieldWrapper, PhotoUpload, SearchInput, AppCombobox } from '@/components/ui';
 import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import { useBranches } from '@/hooks/useBranches';
@@ -84,6 +84,13 @@ export function MembersPage() {
 
     return departments.filter((department) => department.branchId === form.branchId);
   }, [departments, form.branchId]);
+
+  const branchOptions = useMemo(() => {
+    if (!user) return [];
+    return branches
+      .filter((branch) => (user.role === 'superadmin' ? true : branch.id === user.branchId))
+      .map((branch) => ({ value: branch.id, label: branch.name }));
+  }, [branches, user]);
 
   const resetForm = () => {
     setForm({
@@ -285,20 +292,12 @@ export function MembersPage() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <FormFieldWrapper label="Extension" required>
-              <AppSelect
+              <AppCombobox
                 value={form.branchId}
-                onChange={(event) => setForm((prev) => ({ ...prev, branchId: event.target.value, departmentIds: [] }))}
+                onChange={(val) => setForm((prev) => ({ ...prev, branchId: val, departmentIds: [] }))}
+                options={branchOptions}
                 disabled={user.role !== 'superadmin'}
-              >
-                <option value="">Selectionner</option>
-                {branches
-                  .filter((branch) => (user.role === 'superadmin' ? true : branch.id === user.branchId))
-                  .map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-              </AppSelect>
+              />
             </FormFieldWrapper>
             <FormFieldWrapper label="Sexe">
               <AppSelect value={form.gender} onChange={(event) => setForm((prev) => ({ ...prev, gender: event.target.value as ChurchMember['gender'] }))}>

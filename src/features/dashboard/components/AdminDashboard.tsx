@@ -8,11 +8,11 @@ import {
   MiniCalendar,
   QuickActions,
   ReportList,
-  SpiritualFocusCard,
+  DailyVerseCard,
   UpcomingEventsCard,
   WeeklyProgramCard,
 } from '@/components/dashboard';
-import { getSpiritualFocus, getWeeklyProgram } from '@/features/dashboard/lib/dashboardSelectors';
+import { getWeeklyProgram } from '@/features/dashboard/lib/dashboardSelectors';
 import { type UseDashboardStatsResult } from '@/hooks/useDashboardStats';
 import type { Profile } from '@/types';
 import { usePreferences } from '@/contexts/PreferencesContext';
@@ -58,7 +58,6 @@ export function AdminDashboard({ user, dashboard }: AdminDashboardProps) {
   const departmentReports = dashboard.reports.filter((item) => item.departmentName).slice(0, 4);
   const upcoming = dashboard.upcomingEvents.slice(0, 5);
   const alerts = dashboard.openAlerts.slice(0, 3);
-  const spiritual = getSpiritualFocus();
   const weeklyProgram = getWeeklyProgram();
 
   const totalIncome = financeTrend.reduce((sum, item) => sum + item.income, 0);
@@ -66,7 +65,7 @@ export function AdminDashboard({ user, dashboard }: AdminDashboardProps) {
 
   return (
     <div className="space-y-6">
-      <SpiritualFocusCard content={spiritual} />
+      <DailyVerseCard user={user} />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <AdvancedStatCard label="Membres actifs" value={String(activeMembers)} subtitle="Extension locale" icon={Users} trend={5.6} tone="success" />

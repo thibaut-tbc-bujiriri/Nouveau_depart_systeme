@@ -3,6 +3,7 @@ import { useBranches } from '@/hooks/useBranches';
 import { supabase } from '@/lib/supabaseClient';
 import { updateCurrentProfile } from '@/services/profile.service';
 import { useEffect, useMemo, useState, useRef } from 'react';
+import { createNotification } from '@/services/notificationsService';
 import { maxRolePermissions } from '@/lib/permissions';
 
 export type ModulePermissionAction = 'view' | 'create' | 'update' | 'delete';
@@ -416,14 +417,14 @@ export function useSettingsData() {
 
   const initialValues = useMemo<SettingsFormValues>(
     () => ({
-      churchName: stored.churchName ?? branch?.name ?? 'ECND',
-      churchCode: stored.churchCode ?? branch?.code ?? 'ECND',
-      pastorName: stored.pastorName ?? branch?.pastorName ?? '',
+      churchName: branch?.name ?? stored.churchName ?? 'ECND',
+      churchCode: branch?.code ?? stored.churchCode ?? 'ECND',
+      pastorName: branch?.pastorName ?? stored.pastorName ?? '',
       contactEmail: stored.contactEmail ?? user?.email ?? '',
       contactPhone: stored.contactPhone ?? user?.phone ?? '',
       addressLine: stored.addressLine ?? '',
-      city: stored.city ?? branch?.city ?? 'Goma',
-      country: stored.country ?? branch?.country ?? 'RDC',
+      city: branch?.city ?? stored.city ?? 'Goma',
+      country: branch?.country ?? stored.country ?? 'RDC',
       timezone: stored.timezone ?? 'Africa/Lubumbashi',
       currency: stored.currency ?? 'USD',
       language: stored.language ?? 'fr',
@@ -605,6 +606,53 @@ export function useSettingsData() {
       persistRolePermissionsInLocalStorage(modulePermissions);
       setStored(mapAppSettingsRowToStoredSettings(payload as unknown as Record<string, unknown>));
       setSaveSuccess('Parametres sauvegardes avec succes.');
+
+      try {
+        await createNotification({
+          title: "Paramètres système mis à jour",
+          message: "Les paramètres globaux du système ont été mis à jour par un administrateur.",
+          type: "settings_updated",
+          priority: "normal",
+          targetRole: "superadmin",
+          link: "/settings"
+        });
+
+        if (values.autoBackup && !stored.autoBackup) {
+          await createNotification({
+            title: "Sauvegarde automatique activée",
+            message: "La sauvegarde automatique quotidienne des données a été confirmée.",
+            type: "backup_done",
+            priority: "normal",
+            targetRole: "superadmin",
+            link: "/settings"
+          });
+        }
+      } catch (err) {
+        console.error("Failed to create settings/backup notifications:", err);
+      }
+
+      try {
+        const { createActivityLog } = await import('@/services/activityLogService');
+        await createActivityLog({
+          actionType: 'settings_updated',
+          module: 'settings',
+          title: 'Paramètres système mis à jour',
+          description: 'Les paramètres globaux du système ont été modifiés.',
+          status: 'success'
+        });
+
+        if (values.autoBackup && !stored.autoBackup) {
+          await createActivityLog({
+            actionType: 'backup_enabled',
+            module: 'settings',
+            title: 'Sauvegarde automatique activée',
+            description: 'La planification quotidienne des sauvegardes a été activée.',
+            status: 'success'
+          });
+        }
+      } catch (err) {
+        console.error("Log settings update error:", err);
+      }
 
       return true;
     } catch (error) {

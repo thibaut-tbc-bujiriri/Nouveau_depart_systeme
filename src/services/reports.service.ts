@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient';
+import { createNotification } from '@/services/notificationsService';
 
 export interface ReportUpsertInput {
   branchId: string;
@@ -172,6 +173,40 @@ export async function createReport(payload: ReportUpsertInput): Promise<void> {
 
   if (error) {
     throw new Error(error.message || "Impossible d'enregistrer le rapport.");
+  }
+
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentUserId = sessionData.session?.user?.id;
+
+    await createNotification({
+      title: "Nouveau rapport généré",
+      message: `Le rapport "${payload.title}" (${payload.type}) a été généré pour la période : ${payload.period}.`,
+      type: "report_created",
+      priority: "normal",
+      targetExtensionId: payload.branchId || null,
+      targetDepartmentId: payload.departmentId || null,
+      targetUserId: currentUserId || null,
+      link: "/reports"
+    });
+  } catch (err) {
+    console.error("Failed to create report_created notification:", err);
+  }
+
+  try {
+    const { createActivityLog } = await import('@/services/activityLogService');
+    await createActivityLog({
+      actionType: 'report_created',
+      module: 'reports',
+      title: 'Génération d\'un rapport',
+      description: `Le rapport "${payload.title}" (${payload.type}) a été généré pour la période : ${payload.period}.`,
+      status: 'success',
+      extensionId: payload.branchId || undefined,
+      departmentId: payload.departmentId || undefined,
+      metadata: { type: payload.type, period: payload.period }
+    });
+  } catch (err) {
+    console.error("Log report creation error:", err);
   }
 }
 

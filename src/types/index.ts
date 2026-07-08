@@ -160,3 +160,22 @@ export interface SelectOption {
   value: string;
 }
 
+export interface AppNotification {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  priority: 'low' | 'normal' | 'high' | 'critical';
+  targetRole?: Role | null;
+  targetUserId?: string | null;
+  targetExtensionId?: string | null;
+  targetDepartmentId?: string | null;
+  createdBy?: string | null;
+  link?: string | null;
+  metadata?: Record<string, any> | null;
+  isRead: boolean;
+  readAt?: string | null;
+  createdAt: string;
+}
+
+

@@ -1,6 +1,6 @@
 import { Avatar } from '@/components/common';
-import { AppButton } from '@/components/ui';
-import { Modal } from '@/components/ui/Modal';
+import { AppButton, AppSwitch } from '@/components/ui';
+import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import { roleLabels } from '@/lib/permissions';
 import { cn } from '@/lib/cn';
@@ -29,9 +29,22 @@ import {
   Moon,
   Volume2,
   Coins,
+  Trash2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
+import {
+  getNotificationsForCurrentUser,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification,
+  deleteAllNotificationsForCurrentUser,
+} from '@/services/notificationsService';
+import type { AppNotification } from '@/types';
+import { supabase } from '@/lib/supabaseClient';
+import { getRecentActivityLogs } from '@/services/activityLogService';
+import type { ActivityLog } from '@/services/activityLogService';
+
 
 interface TopbarProps {
   onToggleMobileSidebar: () => void;
@@ -42,9 +55,10 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
   const navigate = useNavigate();
   
   // Preferences hook
-  const { language, setLanguage, currency, setCurrency, t } = usePreferences();
+  const { language, setLanguage, currency, setCurrency, theme, setTheme, t } = usePreferences();
   const [tempLanguage, setTempLanguage] = useState<'fr' | 'en'>(language);
   const [tempCurrency, setTempCurrency] = useState<'USD' | 'CDF'>(currency);
+  const [tempTheme, setTempTheme] = useState<'light' | 'dark'>(theme);
 
   // Dropdown states
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -61,96 +75,333 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
     if (isPreferencesOpen) {
       setTempLanguage(language);
       setTempCurrency(currency);
+      setTempTheme(theme);
     }
-  }, [isPreferencesOpen, language, currency]);
+  }, [isPreferencesOpen, language, currency, theme]);
 
   const handleSavePreferences = () => {
     setLanguage(tempLanguage);
     setCurrency(tempCurrency);
+    setTheme(tempTheme);
     setIsPreferencesOpen(false);
   };
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
 
-  // Mock notifications list matching the design specs
-  const [notifications, setNotifications] = useState([
-    {
-      id: '1',
-      title: 'Nouveau membre enregistré',
-      description: 'Jean Kalume a été ajouté comme membre',
-      time: 'Il y a 5 min',
-      unread: true,
-      icon: <UserCheck className="size-4 text-emerald-500" />,
-    },
-    {
-      id: '2',
-      title: 'Nouvel événement créé',
-      description: '"Culte dominical" programmé le 25 Mai 2026',
-      time: 'Il y a 15 min',
-      unread: true,
-      icon: <Calendar className="size-4 text-sky-500" />,
-    },
-    {
-      id: '3',
-      title: "Demande d'approbation",
-      description: 'Demande de budget "Évangélisation" à approuver',
-      time: 'Il y a 30 min',
-      unread: true,
-      icon: <FileText className="size-4 text-amber-500" />,
-    },
-    {
-      id: '4',
-      title: 'Changement de rôle / permission',
-      description: 'Grâce Mbayo est maintenant Responsable Média',
-      time: 'Il y a 1 h',
-      unread: false,
-      icon: <ShieldAlert className="size-4 text-purple-500" />,
-    },
-    {
-      id: '5',
-      title: 'Rappel événement',
-      description: 'Réunion de prière dans 30 minutes',
-      time: 'Il y a 2 h',
-      unread: false,
-      icon: <Bell className="size-4 text-rose-500" />,
-    },
-    {
-      id: '6',
-      title: 'Transaction financière',
-      description: 'Dépense de 150$ enregistrée par Thibaut B.',
-      time: 'Il y a 3 h',
-      unread: false,
-      icon: <Landmark className="size-4 text-teal-500" />,
-    },
-    {
-      id: '7',
-      title: 'Mise à jour système',
-      description: 'Une nouvelle mise à jour est disponible',
-      time: 'Hier, 18:30',
-      unread: false,
-      icon: <RefreshCw className="size-4 text-indigo-500" />,
-    },
-    {
-      id: '8',
-      title: 'Autre notification',
-      description: 'Sauvegarde automatique effectuée avec succès',
-      time: 'Hier, 12:10',
-      unread: false,
-      icon: <MessageSquare className="size-4 text-slate-500" />,
-    },
-  ]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem('ecnd.pref_notification_sound') !== 'false');
+  const [isConfirmDeleteAllOpen, setIsConfirmDeleteAllOpen] = useState(false);
 
-  const unreadCount = notifications.filter((n) => n.unread).length;
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const [logsError, setLogsError] = useState(false);
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+  const fetchActivityLogs = async () => {
+    if (!user) return;
+    try {
+      setLogsError(false);
+      setIsLoadingLogs(true);
+      const data = await getRecentActivityLogs(user, 20);
+      setActivityLogs(data);
+    } catch (err) {
+      console.error("Failed to load activity logs:", err);
+      setLogsError(true);
+    } finally {
+      setIsLoadingLogs(false);
+    }
   };
 
-  const toggleRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
-    );
+  useEffect(() => {
+    if (isActivityLogOpen) {
+      void fetchActivityLogs();
+    }
+  }, [isActivityLogOpen, user]);
+
+  const getActivityLogIcon = (log: ActivityLog) => {
+    if (log.status === 'failed') {
+      return <span className="size-6 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 text-xs font-bold">✗</span>;
+    }
+    if (log.status === 'warning') {
+      return <span className="size-6 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 text-xs font-bold">!</span>;
+    }
+    
+    switch (log.actionType) {
+      case 'login_success':
+        return <span className="size-6 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center shrink-0 text-xs font-bold">✓</span>;
+      case 'logout':
+        return <span className="size-6 rounded-full bg-slate-50 text-slate-600 flex items-center justify-center shrink-0 text-xs font-bold">⎋</span>;
+      case 'user_created':
+      case 'member_created':
+      case 'department_created':
+      case 'extension_created':
+      case 'event_created':
+      case 'service_created':
+        return <span className="size-6 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 text-xs font-bold">+</span>;
+      default:
+        return <span className="size-6 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center shrink-0 text-xs font-bold">✓</span>;
+    }
+  };
+
+  useEffect(() => {
+    localStorage.setItem('ecnd.pref_notification_sound', String(soundEnabled));
+  }, [soundEnabled]);
+
+  const fetchNotifications = async () => {
+    if (!user) return;
+    try {
+      setHasError(false);
+      setIsLoadingNotifications(true);
+      const data = await getNotificationsForCurrentUser(user);
+      setNotifications(data);
+    } catch (err) {
+      console.error('Erreur lors du chargement des notifications:', err);
+      setHasError(true);
+    } finally {
+      setIsLoadingNotifications(false);
+    }
+  };
+
+  const playNotificationSound = () => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+      gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.15);
+    } catch (err) {
+      console.error("Failed to play notification beep:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+
+    void fetchNotifications();
+
+    // Setup Supabase Realtime channel subscription
+    const channel = supabase
+      .channel('public:notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+        },
+        async (payload) => {
+          try {
+            const newNotif = payload.new as any;
+
+            // Client-side filtering check before refresh and beep
+            let isTargeted = false;
+            if (!newNotif.target_role && !newNotif.target_user_id && !newNotif.target_extension_id && !newNotif.target_department_id) {
+              isTargeted = true;
+            } else if (newNotif.target_user_id === user.id) {
+              isTargeted = true;
+            } else if (user.role === 'superadmin') {
+              isTargeted = !newNotif.target_user_id || newNotif.target_user_id === user.id;
+            } else if (user.role === 'admin') {
+              if (newNotif.target_extension_id === user.branchId) {
+                isTargeted = !newNotif.target_role || newNotif.target_role === 'admin';
+              }
+            } else if (user.role === 'department_manager') {
+              if (newNotif.target_department_id && user.departmentIds?.includes(newNotif.target_department_id)) {
+                isTargeted = !newNotif.target_role || newNotif.target_role === 'department_manager';
+              } else if (newNotif.target_extension_id === user.branchId && newNotif.target_role === 'department_manager') {
+                isTargeted = true;
+              }
+            } else if (user.role === 'department_member') {
+              if (newNotif.target_department_id && user.departmentIds?.includes(newNotif.target_department_id)) {
+                isTargeted = !newNotif.target_role || newNotif.target_role === 'department_member';
+              } else if (newNotif.target_extension_id === user.branchId && newNotif.target_role === 'department_member') {
+                isTargeted = true;
+              }
+            }
+
+            if (isTargeted) {
+              await fetchNotifications();
+              if (localStorage.getItem('ecnd.pref_notification_sound') !== 'false') {
+                playNotificationSound();
+              }
+            }
+          } catch (err) {
+            console.error("Realtime notification check failed:", err);
+          }
+        }
+      )
+      .subscribe();
+
+    // Fallback polling (every 45 seconds)
+    const interval = setInterval(() => {
+      void fetchNotifications();
+    }, 45000);
+
+    return () => {
+      void supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
+  }, [user]);
+
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
+
+  const handleMarkAllAsRead = async () => {
+    if (!user) return;
+    try {
+      setNotifications((prev) =>
+        prev.map((n) => ({ ...n, isRead: true, readAt: new Date().toISOString() }))
+      );
+      await markAllNotificationsAsRead(user);
+    } catch (err) {
+      console.error('Erreur lors du marquage de toutes les notifications comme lues:', err);
+      fetchNotifications();
+    }
+  };
+
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n))
+      );
+      await markNotificationAsRead(id);
+    } catch (err) {
+      console.error('Erreur lors du marquage de la notification comme lue:', err);
+      fetchNotifications();
+    }
+  };
+
+  const handleDeleteNotification = async (id: string) => {
+    try {
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      await deleteNotification(id);
+
+      try {
+        const { createActivityLog } = await import('@/services/activityLogService');
+        await createActivityLog({
+          actionType: 'notification_deleted',
+          module: 'notifications',
+          title: 'Notification supprimée',
+          description: `Une notification a été supprimée par l'utilisateur.`,
+          status: 'success',
+          targetId: id
+        });
+      } catch (err) {
+        console.error("Log notification deletion error:", err);
+      }
+    } catch (err) {
+      console.error('Erreur lors de la suppression de la notification:', err);
+      fetchNotifications();
+    }
+  };
+
+  const handleDeleteAll = () => {
+    if (notifications.length === 0) return;
+    setIsConfirmDeleteAllOpen(true);
+  };
+
+  const confirmDeleteAll = async () => {
+    try {
+      setNotifications([]);
+      await deleteAllNotificationsForCurrentUser();
+
+      try {
+        const { createActivityLog } = await import('@/services/activityLogService');
+        await createActivityLog({
+          actionType: 'notifications_cleared',
+          module: 'notifications',
+          title: 'Notifications vidées',
+          description: 'Toutes les notifications ont été supprimées par l\'utilisateur.',
+          status: 'success'
+        });
+      } catch (err) {
+        console.error("Log notifications clear error:", err);
+      }
+    } catch (err) {
+      console.error('Erreur lors de la suppression de toutes les notifications:', err);
+      fetchNotifications();
+    }
+  };
+
+  const handleToggleNotifications = () => {
+    const nextOpen = !isNotificationOpen;
+    setIsNotificationOpen(nextOpen);
+    if (nextOpen) {
+      void fetchNotifications();
+    }
+  };
+
+  const formatRelativeTime = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 0) return "À l'instant";
+    if (diffInSeconds < 60) return "Il y a quelques secondes";
+
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    if (diffInMinutes < 60) return `Il y a ${diffInMinutes} min`;
+
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `Il y a ${diffInHours} h`;
+
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays === 1) return "Hier";
+    if (diffInDays < 7) return `Il y a ${diffInDays} jours`;
+
+    return new Intl.DateTimeFormat('fr-FR', {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date);
+  };
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'user_created':
+      case 'member_created':
+        return <UserCheck className="size-4 text-emerald-500" />;
+      case 'extension_created':
+      case 'extension_updated':
+        return <Globe className="size-4 text-sky-500" />;
+      case 'department_created':
+      case 'department_updated':
+        return <Sliders className="size-4 text-violet-500" />;
+      case 'department_responsible_assigned':
+        return <User className="size-4 text-indigo-500" />;
+      case 'event_created':
+      case 'event_updated':
+        return <Calendar className="size-4 text-sky-500" />;
+      case 'service_created':
+        return <Calendar className="size-4 text-amber-500" />;
+      case 'finance_created':
+        return <Landmark className="size-4 text-teal-500" />;
+      case 'report_created':
+        return <FileText className="size-4 text-amber-500" />;
+      case 'role_changed':
+      case 'permissions_updated':
+        return <ShieldAlert className="size-4 text-purple-500" />;
+      case 'settings_updated':
+        return <Settings className="size-4 text-slate-500" />;
+      case 'backup_done':
+        return <RefreshCw className="size-4 text-indigo-500" />;
+      case 'system_alert':
+        return <ShieldAlert className="size-4 text-rose-500" />;
+      case 'personal_message':
+        return <MessageSquare className="size-4 text-slate-500" />;
+      default:
+        return <Bell className="size-4 text-slate-500" />;
+    }
   };
 
   useEffect(() => {
@@ -218,7 +469,7 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
           {/* Notification Bell with Dropdown */}
           <div className="relative" ref={notificationRef}>
             <button
-              onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+              onClick={handleToggleNotifications}
               className="relative grid size-10 place-items-center rounded-xl border border-slate-100 text-slate-600 hover:bg-slate-50 hover:border-slate-200 transition-all focus:outline-none"
               aria-label="Notifications"
             >
@@ -235,46 +486,86 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-slate-50">
                   <h3 className="text-sm font-bold text-slate-800">Notifications</h3>
-                  {unreadCount > 0 && (
-                    <button
-                      onClick={markAllAsRead}
-                      className="text-[11px] font-bold text-teal-600 hover:text-teal-700 hover:underline transition-colors"
-                    >
-                      ✓ Tout marquer comme lu
-                    </button>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={handleMarkAllAsRead}
+                        className="text-[11px] font-bold text-teal-600 hover:text-teal-700 hover:underline transition-colors"
+                      >
+                        ✓ Tout marquer comme lu
+                      </button>
+                    )}
+                    {notifications.length > 0 && (
+                      <button
+                        onClick={handleDeleteAll}
+                        className="text-[11px] font-bold text-rose-500 hover:text-rose-600 hover:underline transition-colors flex items-center gap-0.5"
+                        title="Supprimer toutes les notifications"
+                      >
+                        <Trash2 className="size-3" />
+                        Supprimer tout
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Notification list */}
                 <div className="max-h-96 overflow-y-auto divide-y divide-slate-50">
-                  {notifications.length === 0 ? (
+                  {isLoadingNotifications && notifications.length === 0 ? (
                     <div className="p-6 text-center text-xs text-slate-400">
-                      Aucune notification
+                      Chargement des notifications...
+                    </div>
+                  ) : hasError ? (
+                    <div className="p-6 text-center text-xs text-rose-500 font-semibold">
+                      Impossible de charger les notifications.
+                    </div>
+                  ) : notifications.length === 0 ? (
+                    <div className="p-6 text-center text-xs text-slate-400">
+                      Aucune notification pour le moment.
                     </div>
                   ) : (
-                    notifications.map((n) => (
+                    notifications.slice(0, 15).map((n) => (
                       <div
                         key={n.id}
-                        onClick={() => toggleRead(n.id)}
+                        onClick={async () => {
+                          await handleMarkAsRead(n.id);
+                          if (n.link) {
+                            navigate(n.link);
+                          }
+                          setIsNotificationOpen(false);
+                        }}
                         className={cn(
-                          "p-3.5 flex gap-3 hover:bg-slate-50 transition-colors cursor-pointer text-left relative",
-                          n.unread && "bg-slate-50/50"
+                          "p-3.5 flex gap-3 hover:bg-slate-50 transition-colors cursor-pointer text-left relative group",
+                          !n.isRead && "bg-slate-50/50"
                         )}
                       >
                         {/* Dot indicator */}
-                        {n.unread && (
-                          <span className="absolute right-3.5 top-1/2 -translate-y-1/2 size-2 rounded-full bg-teal-500"></span>
+                        {!n.isRead && (
+                          <span className="absolute right-3.5 top-1/2 -translate-y-1/2 size-2 rounded-full bg-teal-500 group-hover:opacity-0 transition-opacity"></span>
                         )}
                         {/* Icon */}
                         <div className="size-8 rounded-lg bg-slate-50 flex items-center justify-center shrink-0 text-slate-500">
-                          {n.icon}
+                          {getNotificationIcon(n.type)}
                         </div>
                         {/* Content */}
-                        <div className="space-y-0.5 pr-4">
+                        <div className="space-y-0.5 pr-8 flex-1">
                           <p className="text-xs font-bold text-slate-800 leading-tight">{n.title}</p>
-                          <p className="text-[11px] text-slate-500 leading-snug">{n.description}</p>
-                          <p className="text-[10px] text-slate-400 font-medium pt-1">{n.time}</p>
+                          <p className="text-[11px] text-slate-500 leading-snug">{n.message}</p>
+                          <p className="text-[10px] text-slate-400 font-medium pt-1">
+                            {formatRelativeTime(n.createdAt)}
+                          </p>
                         </div>
+
+                        {/* Trash Button */}
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            await handleDeleteNotification(n.id);
+                          }}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-rose-600 p-1 hover:bg-slate-100 rounded-lg"
+                          title="Supprimer cette notification"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
                       </div>
                     ))
                   )}
@@ -420,13 +711,16 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
         <div className="space-y-4 py-2">
           <div className="space-y-3">
             {/* Theme option */}
-            <div className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg">
+            <label className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg cursor-pointer select-none">
               <div className="flex items-center gap-2">
                 <Moon className="size-4 text-slate-500" />
                 <span className="text-xs font-semibold text-slate-700">Mode sombre</span>
               </div>
-              <input type="checkbox" className="rounded text-teal-600 focus:ring-teal-500 cursor-pointer" />
-            </div>
+              <AppSwitch
+                checked={tempTheme === 'dark'}
+                onChange={(e) => setTempTheme(e.target.checked ? 'dark' : 'light')}
+              />
+            </label>
 
             {/* Language option */}
             <div className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg">
@@ -461,13 +755,16 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
             </div>
 
             {/* Notification sound */}
-            <div className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg">
+            <label className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg cursor-pointer select-none">
               <div className="flex items-center gap-2">
                 <Volume2 className="size-4 text-slate-500" />
                 <span className="text-xs font-semibold text-slate-700">Sons de notification</span>
               </div>
-              <input type="checkbox" defaultChecked className="rounded text-teal-600 focus:ring-teal-500 cursor-pointer" />
-            </div>
+              <AppSwitch
+                checked={soundEnabled}
+                onChange={(e) => setSoundEnabled(e.target.checked)}
+              />
+            </label>
 
             {/* Notification frequency */}
             <div className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg">
@@ -506,45 +803,33 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
           </div>
           
           <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-            <div className="flex items-start gap-3 p-2.5 rounded-lg bg-slate-50 hover:bg-slate-100/70 transition-colors">
-              <div className="size-6 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
-                ✓
+            {isLoadingLogs && activityLogs.length === 0 ? (
+              <div className="p-6 text-center text-xs text-slate-400">
+                Chargement du journal d'activités...
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-800">Connexion réussie</p>
-                <p className="text-[10px] text-slate-500">Adresse IP: 192.168.1.104 • Il y a 10 min</p>
+            ) : logsError ? (
+              <div className="p-6 text-center text-xs text-rose-500 font-semibold">
+                Impossible de charger le journal d’activités.
               </div>
-            </div>
-
-            <div className="flex items-start gap-3 p-2.5 rounded-lg bg-slate-50 hover:bg-slate-100/70 transition-colors">
-              <div className="size-6 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                ✎
+            ) : activityLogs.length === 0 ? (
+              <div className="p-6 text-center text-xs text-slate-400">
+                Aucune activité récente.
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-800">Modification du budget départemental</p>
-                <p className="text-[10px] text-slate-500">Modification du budget Caisse à 250 USD • Il y a 3 h</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 p-2.5 rounded-lg bg-slate-50 hover:bg-slate-100/70 transition-colors">
-              <div className="size-6 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
-                +
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-800">Création de département</p>
-                <p className="text-[10px] text-slate-500">Assignation du département Caisse à l'extension Goma • Il y a 1 jour</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 p-2.5 rounded-lg bg-slate-50 hover:bg-slate-100/70 transition-colors">
-              <div className="size-6 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-                ✗
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-800">Modification de profil refusée</p>
-                <p className="text-[10px] text-slate-500">Tentative de modification des droits RLS rejetée • Il y a 2 jours</p>
-              </div>
-            </div>
+            ) : (
+              activityLogs.map((log) => (
+                <div key={log.id} className="flex items-start gap-3 p-2.5 rounded-lg bg-slate-50 hover:bg-slate-100/70 transition-colors text-left">
+                  {getActivityLogIcon(log)}
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">{log.title}</p>
+                    <p className="text-[11px] text-slate-600 leading-snug">{log.description}</p>
+                    <p className="text-[10px] text-slate-400 pt-0.5 font-medium">
+                      {log.userName && `${log.userName} • `}
+                      {formatRelativeTime(log.createdAt)}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           <div className="flex justify-end pt-4 border-t border-slate-100">
@@ -621,6 +906,17 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
           </div>
         </div>
       </Modal>
+      <ConfirmDialog
+        isOpen={isConfirmDeleteAllOpen}
+        title="Supprimer toutes les notifications"
+        description="Voulez-vous vraiment supprimer toutes vos notifications ? Cette action est irréversible."
+        confirmLabel="Supprimer"
+        onCancel={() => setIsConfirmDeleteAllOpen(false)}
+        onConfirm={async () => {
+          setIsConfirmDeleteAllOpen(false);
+          await confirmDeleteAll();
+        }}
+      />
     </header>
   );
 }

@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabaseClient';
 import type { DepartmentRow, ProfileRow } from '@/services/types';
 import type { Branch, Role } from '@/types';
+import { createNotification } from '@/services/notificationsService';
+import { roleLabels } from '@/lib/permissions';
 
 export interface ManagedUser {
   id: string;
@@ -114,6 +116,7 @@ export async function updateUserAccess(
     avatarUrl?: string | null;
     status?: string;
   },
+  isNewUser = false,
 ) {
   if (payload.role === 'superadmin') {
     if (!payload.branchId) {
@@ -190,6 +193,56 @@ export async function updateUserAccess(
       .update({ manager_profile_id: userId })
       .eq('id', payload.departmentIds[0]);
   }
+
+  if (!isNewUser) {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', userId)
+        .maybeSingle();
+
+      const userName = profile?.full_name || "Un utilisateur";
+
+      // 1. Notification for Super Admins / Admins of extension
+      await createNotification({
+        title: "Accès utilisateur mis à jour",
+        message: `Les accès de ${userName} ont été mis à jour (Rôle : ${roleLabels[payload.role]}).`,
+        type: "role_changed",
+        priority: "normal",
+        targetExtensionId: payload.branchId || null,
+        link: "/utilisateurs"
+      });
+
+      // 2. Personal notification for the user
+      await createNotification({
+        title: "Vos accès ont été mis à jour",
+        message: `Vos accès ont été mis à jour. Rôle actuel : ${roleLabels[payload.role]}.`,
+        type: "role_changed",
+        priority: "normal",
+        targetUserId: userId,
+        link: "/profile"
+      });
+
+      try {
+        const { createActivityLog } = await import('@/services/activityLogService');
+        await createActivityLog({
+          actionType: 'user_updated',
+          module: 'users',
+          title: 'Mise à jour des accès',
+          description: `Les accès de l'utilisateur ${userName} ont été mis à jour (Rôle: ${roleLabels[payload.role]}).`,
+          status: 'success',
+          targetId: userId,
+          targetName: userName,
+          extensionId: payload.branchId
+        });
+      } catch (err) {
+        console.error("Log user update access error:", err);
+      }
+    } catch (err) {
+      console.error("Failed to create role_changed notification:", err);
+    }
+  }
 }
 
 export async function deleteManagedUser(userId: string) {
@@ -213,6 +266,20 @@ export async function deleteManagedUser(userId: string) {
   const { error: deleteProfileError } = await supabase.from('profiles').delete().eq('id', userId);
   if (deleteProfileError) {
     throw deleteProfileError;
+  }
+
+  try {
+    const { createActivityLog } = await import('@/services/activityLogService');
+    await createActivityLog({
+      actionType: 'user_deleted',
+      module: 'users',
+      title: 'Suppression d\'un utilisateur',
+      description: `L'utilisateur avec l'ID ${userId} a été supprimé du système.`,
+      status: 'success',
+      targetId: userId
+    });
+  } catch (err) {
+    console.error("Log user deletion error:", err);
   }
 }
 
@@ -324,7 +391,47 @@ export async function createManagedUser(payload: {
     departmentIds: payload.departmentIds,
     avatarUrl: payload.avatarUrl,
     status: payload.status || 'active',
-  });
+  }, true);
+
+  try {
+    await createNotification({
+      title: "Nouvel utilisateur créé",
+      message: `${payload.fullName} a été ajouté(e) avec le rôle de ${roleLabels[payload.role]}.`,
+      type: "user_created",
+      priority: "normal",
+      targetExtensionId: payload.branchId || null,
+      link: "/utilisateurs"
+    });
+
+    if (payload.role === 'department_manager' || payload.role === 'department_member') {
+      await createNotification({
+        title: "Bienvenue sur la plateforme",
+        message: `Votre compte a été créé avec le rôle de ${roleLabels[payload.role]}.`,
+        type: "user_created",
+        priority: "normal",
+        targetUserId: userId,
+        link: "/profile"
+      });
+    }
+  } catch (err) {
+    console.error("Failed to create user_created notification:", err);
+  }
+
+  try {
+    const { createActivityLog } = await import('@/services/activityLogService');
+    await createActivityLog({
+      actionType: 'user_created',
+      module: 'users',
+      title: 'Création d\'un utilisateur',
+      description: `L'utilisateur ${payload.fullName} (${payload.email}) a été créé.`,
+      status: 'success',
+      targetId: userId,
+      targetName: payload.fullName,
+      extensionId: payload.branchId
+    });
+  } catch (err) {
+    console.error("Log user creation error:", err);
+  }
 
   if (!previousSession) {
     return;

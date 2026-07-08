@@ -1,5 +1,5 @@
 import { DataTable, DepartmentBadge, EmptyState, LoadingState, PageHeader } from '@/components/common';
-import { AppButton, AppSelect, FormFieldWrapper, SearchInput } from '@/components/ui';
+import { AppButton, FormFieldWrapper, SearchInput, AppCombobox } from '@/components/ui';
 import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import { toBaseDepartment, useDepartments } from '@/hooks/useDepartments';
@@ -88,6 +88,21 @@ export function DepartmentsPage() {
       .filter((d) => d.branchId === form.branchId)
       .map((d) => d.name);
   }, [departments, form.branchId]);
+
+  const branchOptions = useMemo(() => {
+    if (!user) return [];
+    return branches
+      .filter((branch) => (user.role === 'superadmin' ? true : branch.id === user.branchId))
+      .map((branch) => ({ value: branch.id, label: branch.name }));
+  }, [branches, user]);
+
+  const editDeptNameOptions = useMemo(() => {
+    const list = availableNames.filter((name) => name === form.name || !existingDeptsForBranch.includes(name));
+    if (form.name && !availableNames.includes(form.name)) {
+      list.unshift(form.name);
+    }
+    return list.map((name) => ({ value: name, label: name }));
+  }, [availableNames, form.name, existingDeptsForBranch]);
 
   const branchMap = useMemo(() => new Map(branches.map((branch) => [branch.id, branch.name])), [branches]);
   const canCreate = user ? hasModulePermission(user.role, 'departments', 'create') : false;
@@ -281,6 +296,10 @@ export function DepartmentsPage() {
       }
       try {
         for (const name of selectedNames) {
+          // Guard: Skip department insertion if it is already assigned to this branch
+          if (existingDeptsForBranch.includes(name)) {
+            continue;
+          }
           await createDepartment({
             branchId: form.branchId,
             name,
@@ -463,39 +482,22 @@ export function DepartmentsPage() {
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? 'Modifier departement' : 'Nouveau departement'}>
         <div className="space-y-4">
           <FormFieldWrapper label="Extension" required>
-            <AppSelect
+            <AppCombobox
               value={form.branchId}
-              onChange={(event) => setForm((prev) => ({ ...prev, branchId: event.target.value }))}
+              onChange={(val) => setForm((prev) => ({ ...prev, branchId: val }))}
+              options={branchOptions}
               disabled={user.role === 'admin' || Boolean(editingId)}
-            >
-              <option value="">Selectionner</option>
-              {branches
-                .filter((branch) => (user.role === 'superadmin' ? true : branch.id === user.branchId))
-                .map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </option>
-                ))}
-            </AppSelect>
+            />
           </FormFieldWrapper>
 
           {editingId ? (
-            /* Edit Mode: Simple dropdown select for the single department name (disabled as requested) */
+            /* Edit Mode: Simple dropdown select for the single department name */
             <FormFieldWrapper label="Nom du departement" required>
-              <AppSelect
+              <AppCombobox
                 value={form.name}
-                onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-                disabled
-              >
-                {!availableNames.includes(form.name) && (
-                  <option value={form.name}>{form.name}</option>
-                )}
-                {availableNames.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </AppSelect>
+                onChange={(val) => setForm((prev) => ({ ...prev, name: val }))}
+                options={editDeptNameOptions}
+              />
             </FormFieldWrapper>
           ) : (
             /* Creation Mode: Searchable Checklist with Add/Edit/Delete options */

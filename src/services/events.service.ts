@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient';
+import { createNotification } from '@/services/notificationsService';
 
 export interface EventUpsertInput {
   branchId: string;
@@ -113,6 +114,35 @@ export async function createEvent(payload: EventUpsertInput): Promise<void> {
   if (error) {
     throw new Error(error.message || "Impossible d'ajouter l'evenement.");
   }
+
+  try {
+    await createNotification({
+      title: "Nouvel événement créé",
+      message: `L'événement "${payload.title}" a été programmé pour le ${payload.date}.`,
+      type: "event_created",
+      priority: "normal",
+      targetExtensionId: payload.branchId,
+      targetDepartmentId: payload.organizerDepartmentId || null,
+      link: "/evenements"
+    });
+  } catch (err) {
+    console.error("Failed to create event_created notification:", err);
+  }
+
+  try {
+    const { createActivityLog } = await import('@/services/activityLogService');
+    await createActivityLog({
+      actionType: 'event_created',
+      module: 'events',
+      title: 'Création d\'un événement',
+      description: `L'événement "${payload.title}" a été programmé pour le ${payload.date}.`,
+      status: 'success',
+      extensionId: payload.branchId,
+      departmentId: payload.organizerDepartmentId || undefined
+    });
+  } catch (err) {
+    console.error("Log event creation error:", err);
+  }
 }
 
 export async function updateEvent(eventId: string, payload: EventUpsertInput): Promise<void> {
@@ -140,6 +170,37 @@ export async function updateEvent(eventId: string, payload: EventUpsertInput): P
 
   if (error) {
     throw new Error(error.message || "Impossible de modifier l'evenement.");
+  }
+
+  try {
+    await createNotification({
+      title: "Événement modifié",
+      message: `L'événement "${payload.title}" a été mis à jour.`,
+      type: "event_updated",
+      priority: "normal",
+      targetExtensionId: payload.branchId,
+      targetDepartmentId: payload.organizerDepartmentId || null,
+      link: "/evenements"
+    });
+  } catch (err) {
+    console.error("Failed to create event_updated notification:", err);
+  }
+
+  try {
+    const { createActivityLog } = await import('@/services/activityLogService');
+    await createActivityLog({
+      actionType: 'event_updated',
+      module: 'events',
+      title: 'Mise à jour d\'un événement',
+      description: `L'événement "${payload.title}" a été modifié.`,
+      status: 'success',
+      targetId: eventId,
+      targetName: payload.title,
+      extensionId: payload.branchId,
+      departmentId: payload.organizerDepartmentId || undefined
+    });
+  } catch (err) {
+    console.error("Log event update error:", err);
   }
 }
 

@@ -217,6 +217,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (error) {
         const safeError = toUserFacingAuthErrorMessage(error);
         set({ isLoading: false, error: safeError });
+        try {
+          const { createActivityLog } = await import('@/services/activityLogService');
+          await createActivityLog({
+            actionType: 'login_failed',
+            module: 'auth',
+            title: 'Échec de connexion',
+            description: `Tentative de connexion échouée pour l'adresse ${email}.`,
+            status: 'failed',
+            metadata: { email }
+          });
+        } catch (err) {
+          console.error("Log login failed error:", err);
+        }
         return { error: safeError };
       }
 
@@ -242,6 +255,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error: resolvedError,
       });
 
+      try {
+        const { createActivityLog } = await import('@/services/activityLogService');
+        await createActivityLog({
+          actionType: 'login_success',
+          module: 'auth',
+          title: 'Connexion réussie',
+          description: `L'utilisateur ${profile?.fullName || email} s'est connecté.`,
+          status: 'success',
+          metadata: { email }
+        });
+      } catch (err) {
+        console.error("Log login success error:", err);
+      }
+
       return { error: resolvedError };
     } catch (error) {
       const safeError = toUserFacingAuthErrorMessage(error);
@@ -253,10 +280,36 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
         error: safeError,
       });
+      try {
+        const { createActivityLog } = await import('@/services/activityLogService');
+        await createActivityLog({
+          actionType: 'login_failed',
+          module: 'auth',
+          title: 'Échec de connexion',
+          description: `Tentative de connexion échouée pour l'adresse ${email}.`,
+          status: 'failed',
+          metadata: { email }
+        });
+      } catch (err) {
+        console.error("Log login failed error:", err);
+      }
       return { error: safeError };
     }
   },
   logout: async () => {
+    try {
+      const { createActivityLog } = await import('@/services/activityLogService');
+      await createActivityLog({
+        actionType: 'logout',
+        module: 'auth',
+        title: 'Déconnexion',
+        description: 'L\'utilisateur s\'est déconnecté de la plateforme.',
+        status: 'success'
+      });
+    } catch (err) {
+      console.error("Log logout error:", err);
+    }
+
     await signOut();
     localStorage.removeItem('ecnd.current_session_password');
     set({

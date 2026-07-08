@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { mapBranchRowToBranch } from '@/services/mappers';
 import type { BranchRow } from '@/services/types';
 import type { Branch } from '@/types';
+import { createNotification } from '@/services/notificationsService';
 
 export interface BranchUpsertInput {
   code: string;
@@ -106,6 +107,33 @@ export async function createBranch(payload: BranchUpsertInput): Promise<void> {
   if (error) {
     throw error;
   }
+
+  try {
+    await createNotification({
+      title: "Nouvelle extension créée",
+      message: `L'extension "${payload.name}" (${payload.city}, ${payload.country}) a été créée.`,
+      type: "extension_created",
+      priority: "normal",
+      targetRole: "superadmin",
+      link: "/extensions"
+    });
+  } catch (err) {
+    console.error("Failed to create extension_created notification:", err);
+  }
+
+  try {
+    const { createActivityLog } = await import('@/services/activityLogService');
+    await createActivityLog({
+      actionType: 'extension_created',
+      module: 'branches',
+      title: 'Création d\'une extension',
+      description: `L'extension "${payload.name}" (${payload.city}, ${payload.country}) a été créée.`,
+      status: 'success',
+      targetName: payload.name
+    });
+  } catch (err) {
+    console.error("Log extension creation error:", err);
+  }
 }
 
 export async function updateBranch(branchId: string, payload: BranchUpsertInput): Promise<void> {
@@ -125,6 +153,35 @@ export async function updateBranch(branchId: string, payload: BranchUpsertInput)
 
   if (error) {
     throw error;
+  }
+
+  try {
+    await createNotification({
+      title: "Extension mise à jour",
+      message: `L'extension "${payload.name}" a été mise à jour.`,
+      type: "extension_updated",
+      priority: "normal",
+      targetExtensionId: branchId,
+      link: "/extensions"
+    });
+  } catch (err) {
+    console.error("Failed to create extension_updated notification:", err);
+  }
+
+  try {
+    const { createActivityLog } = await import('@/services/activityLogService');
+    await createActivityLog({
+      actionType: 'extension_updated',
+      module: 'branches',
+      title: 'Mise à jour d\'une extension',
+      description: `L'extension "${payload.name}" a été mise à jour.`,
+      status: 'success',
+      targetId: branchId,
+      targetName: payload.name,
+      extensionId: branchId
+    });
+  } catch (err) {
+    console.error("Log extension update error:", err);
   }
 }
 

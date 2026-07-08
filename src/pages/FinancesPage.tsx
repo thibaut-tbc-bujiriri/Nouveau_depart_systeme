@@ -1,5 +1,5 @@
 import { DataTable, EmptyState, LoadingState, PageHeader, StatCard } from '@/components/common';
-import { AppButton, AppInput, AppSelect, FormFieldWrapper } from '@/components/ui';
+import { AppButton, AppInput, AppSelect, FormFieldWrapper, AppCombobox } from '@/components/ui';
 import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import { useBranches } from '@/hooks/useBranches';
@@ -64,6 +64,16 @@ export function FinancesPage() {
     () => departments.filter((department) => (form.branchId ? department.branchId === form.branchId : true)),
     [departments, form.branchId],
   );
+
+  const branchOptions = useMemo(() =>
+    scopedBranches.map((branch) => ({ value: branch.id, label: branch.name })),
+    [scopedBranches]
+  );
+
+  const departmentOptions = useMemo(() => [
+    { value: '', label: 'Aucun' },
+    ...scopedDepartments.map((dept) => ({ value: dept.id, label: dept.name }))
+  ], [scopedDepartments]);
 
   if (!user) {
     return null;
@@ -195,31 +205,19 @@ export function FinancesPage() {
         <div className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <FormFieldWrapper label="Extension" required>
-              <AppSelect
+              <AppCombobox
                 value={form.branchId}
-                onChange={(event) => setForm((prev) => ({ ...prev, branchId: event.target.value, departmentId: '' }))}
+                onChange={(val) => setForm((prev) => ({ ...prev, branchId: val, departmentId: '' }))}
+                options={branchOptions}
                 disabled={user.role !== 'superadmin'}
-              >
-                <option value="">Selectionner</option>
-                {scopedBranches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </AppSelect>
+              />
             </FormFieldWrapper>
             <FormFieldWrapper label="Departement (optionnel)">
-              <AppSelect
+              <AppCombobox
                 value={form.departmentId}
-                onChange={(event) => setForm((prev) => ({ ...prev, departmentId: event.target.value }))}
-              >
-                <option value="">Aucun</option>
-                {scopedDepartments.map((department) => (
-                  <option key={department.id} value={department.id}>
-                    {department.name}
-                  </option>
-                ))}
-              </AppSelect>
+                onChange={(val) => setForm((prev) => ({ ...prev, departmentId: val }))}
+                options={departmentOptions}
+              />
             </FormFieldWrapper>
           </div>
 

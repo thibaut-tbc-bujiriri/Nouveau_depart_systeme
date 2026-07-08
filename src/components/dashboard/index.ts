@@ -1,4 +1,4 @@
-﻿export * from './ActivityFeed';
+export * from './ActivityFeed';
 export * from './AdvancedStatCard';
 export * from './AlertsPanel';
 export * from './ChartCard';
@@ -15,4 +15,5 @@ export * from './SummaryBadge';
 export * from './TrendIndicator';
 export * from './UpcomingEventsCard';
 export * from './WeeklyProgramCard';
+export * from './DailyVerseCard';
 

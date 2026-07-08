@@ -1,5 +1,5 @@
 import { Avatar, DataTable, EmptyState, LoadingState, PageHeader } from '@/components/common';
-import { AppButton, AppInput, AppSelect, SearchInput } from '@/components/ui';
+import { AppButton, AppInput, AppSelect, SearchInput, AppCombobox } from '@/components/ui';
 import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import { useUsersManagement } from '@/hooks/useUsersManagement';
@@ -352,6 +352,23 @@ export function UsersPage() {
   const [editError, setEditError] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null | undefined>(undefined);
 
+  const editBranchOptions = useMemo(() => {
+    if (!editingUser) return [];
+    const firstLabel = editingUser.role === 'superadmin' ? 'Global / Non assigne' : 'Selectionner une extension';
+    return [
+      { value: '', label: firstLabel },
+      ...branches.map((b) => ({ value: b.id, label: b.name }))
+    ];
+  }, [branches, editingUser?.role]);
+
+  const newBranchOptions = useMemo(() => {
+    const firstLabel = newUser.role === 'superadmin' ? 'Global / Non assigne' : 'Selectionner une extension';
+    return [
+      { value: '', label: firstLabel },
+      ...branches.map((b) => ({ value: b.id, label: b.name }))
+    ];
+  }, [branches, newUser.role]);
+
   // Password visibility visibility toggles
   const [showEditPassword, setShowEditPassword] = useState(false);
   const [showCreatePassword, setShowCreatePassword] = useState(false);
@@ -653,32 +670,22 @@ export function UsersPage() {
                     <Building2 className="text-slate-400" size={14} />
                     Extension
                   </label>
-                  <AppSelect
+                  <AppCombobox
                     value={editingUser.branchId}
-                    onChange={(event) =>
+                    onChange={(val) =>
                       setEditingUser((current) =>
                         current
                           ? {
                               ...current,
-                              branchId: event.target.value,
+                              branchId: val,
                               departmentIds: [],
                             }
                           : current,
                       )
                     }
+                    options={editBranchOptions}
                     disabled={user?.role === 'admin'}
-                  >
-                    {editingUser.role === 'superadmin' ? (
-                      <option value="">Global / Non assigne</option>
-                    ) : (
-                      <option value="">Selectionner une extension</option>
-                    )}
-                    {branches.map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </option>
-                    ))}
-                  </AppSelect>
+                  />
                 </div>
 
                 {/* Department responsible: Combobox */}
@@ -1022,29 +1029,19 @@ export function UsersPage() {
                   <Building2 className="text-slate-400" size={14} />
                   Extension
                 </label>
-                <AppSelect
+                <AppCombobox
                   value={newUser.branchId}
-                  onChange={(event) =>
+                  onChange={(val) =>
                     setNewUser((current) => ({
                       ...current,
-                      branchId: event.target.value,
+                      branchId: val,
                       departmentIds: [],
                       primaryDepartmentId: '',
                     }))
                   }
+                  options={newBranchOptions}
                   disabled={user?.role === 'admin'}
-                >
-                  {newUser.role === 'superadmin' ? (
-                    <option value="">Global / Non assigne</option>
-                  ) : (
-                    <option value="">Selectionner une extension</option>
-                  )}
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </AppSelect>
+                />
               </div>
 
               {/* Department manager: Searchable Select */}

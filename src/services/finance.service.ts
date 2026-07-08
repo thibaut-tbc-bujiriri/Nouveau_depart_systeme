@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient';
+import { createNotification } from '@/services/notificationsService';
 
 export interface FinanceUpsertInput {
   branchId: string;
@@ -33,6 +34,37 @@ export async function createFinanceRecord(payload: FinanceUpsertInput): Promise<
 
   if (error) {
     throw error;
+  }
+
+  try {
+    await createNotification({
+      title: "Transaction financière enregistrée",
+      message: `Une opération de ${payload.amount}$ (${payload.type === 'income' ? 'recette' : 'dépense'} - ${payload.category}) a été enregistrée : ${payload.description}.`,
+      type: "finance_created",
+      priority: "normal",
+      targetRole: "department_manager",
+      targetExtensionId: payload.branchId,
+      targetDepartmentId: payload.departmentId || null,
+      link: "/finances"
+    });
+  } catch (err) {
+    console.error("Failed to create finance_created notification:", err);
+  }
+
+  try {
+    const { createActivityLog } = await import('@/services/activityLogService');
+    await createActivityLog({
+      actionType: 'finance_created',
+      module: 'finances',
+      title: payload.type === 'income' ? 'Enregistrement d\'une recette' : 'Enregistrement d\'une dépense',
+      description: `Une transaction de ${payload.amount}$ (${payload.category}) a été enregistrée : ${payload.description}`,
+      status: 'success',
+      extensionId: payload.branchId,
+      departmentId: payload.departmentId || undefined,
+      metadata: { amount: payload.amount, type: payload.type, category: payload.category }
+    });
+  } catch (err) {
+    console.error("Log finance creation error:", err);
   }
 }
 

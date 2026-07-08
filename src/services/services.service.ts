@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient';
+import { createNotification } from '@/services/notificationsService';
 
 export interface ServiceUpsertInput {
   branchId: string;
@@ -124,6 +125,33 @@ export async function createService(payload: ServiceUpsertInput): Promise<void> 
 
   if (error) {
     throw new Error(error.message || "Impossible d'ajouter le programme.");
+  }
+
+  try {
+    await createNotification({
+      title: "Nouveau service programmé",
+      message: `Le service "${payload.title}" a été programmé le ${payload.date} de ${payload.startTime} à ${payload.endTime}.`,
+      type: "service_created",
+      priority: "normal",
+      targetExtensionId: payload.branchId,
+      link: "/services"
+    });
+  } catch (err) {
+    console.error("Failed to create service_created notification:", err);
+  }
+
+  try {
+    const { createActivityLog } = await import('@/services/activityLogService');
+    await createActivityLog({
+      actionType: 'service_created',
+      module: 'services',
+      title: 'Planification d\'un culte',
+      description: `Le culte "${payload.title}" a été planifié pour le ${payload.date}.`,
+      status: 'success',
+      extensionId: payload.branchId
+    });
+  } catch (err) {
+    console.error("Log service creation error:", err);
   }
 }
 

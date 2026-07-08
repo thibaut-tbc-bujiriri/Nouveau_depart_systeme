@@ -1,11 +1,12 @@
 import { Avatar, EmptyState, LoadingState } from '@/components/common';
-import { AppButton, AppInput, FormFieldWrapper } from '@/components/ui';
+import { AppButton, AppInput, FormFieldWrapper, PhotoUpload } from '@/components/ui';
 import { Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import { useBranches } from '@/hooks/useBranches';
 import { useDepartments } from '@/hooks/useDepartments';
 import { updateCurrentUserPassword } from '@/services/auth.service';
 import { updateCurrentProfile } from '@/services/profile.service';
+import { uploadPhoto } from '@/utils/storage';
 import { roleLabels } from '@/utils/permissions';
 import { useMemo, useState } from 'react';
 import {
@@ -34,6 +35,7 @@ interface ProfileFormState {
   fullName: string;
   phone: string;
   title: string;
+  avatarUrl?: string | null;
 }
 
 interface PasswordFormState {
@@ -52,10 +54,12 @@ export function ProfilePage() {
   const [isSavingPassword, setIsSavingPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null | undefined>(undefined);
   const [profileForm, setProfileForm] = useState<ProfileFormState>({
     fullName: '',
     phone: '',
     title: '',
+    avatarUrl: null,
   });
   const [passwordForm, setPasswordForm] = useState<PasswordFormState>({
     newPassword: '',
@@ -90,10 +94,12 @@ export function ProfilePage() {
   const openEditModal = () => {
     setErrorMessage(null);
     setSuccessMessage(null);
+    setPhotoFile(undefined);
     setProfileForm({
       fullName: user.fullName ?? '',
       phone: user.phone ?? '',
       title: user.title ?? '',
+      avatarUrl: user.avatarUrl ?? null,
     });
     setIsEditOpen(true);
   };
@@ -118,10 +124,18 @@ export function ProfilePage() {
     setErrorMessage(null);
     setSuccessMessage(null);
     try {
+      let uploadedUrl = profileForm.avatarUrl || null;
+      if (photoFile) {
+        uploadedUrl = await uploadPhoto(photoFile, 'profiles');
+      } else if (photoFile === null) {
+        uploadedUrl = null;
+      }
+
       const updated = await updateCurrentProfile(user.id, {
         fullName: profileForm.fullName.trim(),
         phone: profileForm.phone.trim(),
         title: profileForm.title.trim() || undefined,
+        avatarUrl: uploadedUrl,
       });
       if (!updated) {
         throw new Error('Mise a jour echouee.');
@@ -426,6 +440,12 @@ export function ProfilePage() {
 
       <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Modifier le profil">
         <div className="space-y-4">
+          <PhotoUpload
+            value={profileForm.avatarUrl}
+            onChange={setPhotoFile}
+            nameInitial={profileForm.fullName}
+            label="Photo de profil"
+          />
           <FormFieldWrapper label="Nom complet" required>
             <AppInput
               value={profileForm.fullName}

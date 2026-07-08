@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { mapChurchMemberRowToMember } from '@/services/mappers';
 import type { ChurchMemberDepartmentRow, ChurchMemberRow } from '@/services/types';
 import type { ChurchMember } from '@/types';
+import { createNotification } from '@/services/notificationsService';
 
 function normalizePhone(phone: string): string {
   // Keep only digits to stay compatible with numeric/text schemas.
@@ -37,6 +38,7 @@ export interface MemberUpsertInput {
   joinedAt: string;
   status: ChurchMember['status'];
   departmentIds: string[];
+  avatarUrl?: string | null;
 }
 
 type MembersWriteAction = 'create' | 'update' | 'delete';
@@ -63,7 +65,66 @@ export async function getMembers(): Promise<ChurchMember[]> {
 }
 
 export async function createMember(payload: MemberUpsertInput): Promise<void> {
-  await invokeMembersWrite('create', { payload: { ...payload, phone: normalizePhone(payload.phone) } });
+  const result = await invokeMembersWrite('create', { payload: { ...payload, phone: normalizePhone(payload.phone) } });
+
+  // Client-side fallback to save avatarUrl if the Edge Function doesn't support/write it
+  if (result?.id && payload.avatarUrl) {
+    const { error: avatarError } = await supabase
+      .from('church_members')
+      .update({ avatar_url: payload.avatarUrl })
+      .eq('id', result.id);
+    if (avatarError) {
+      console.warn("Client-side avatar insert failed (likely RLS restrictions):", avatarError.message);
+    }
+  }
+
+  try {
+    let deptName = '';
+    if (payload.departmentIds && payload.departmentIds.length > 0) {
+      const { data: dept } = await supabase
+        .from('departments')
+        .select('name')
+        .eq('id', payload.departmentIds[0])
+        .maybeSingle();
+      if (dept) {
+        deptName = dept.name;
+      }
+    }
+
+    try {
+      await createNotification({
+        title: "Nouveau membre enregistré",
+        message: deptName 
+          ? `${payload.firstName} ${payload.lastName} a été ajouté(e) au département ${deptName}.`
+          : `${payload.firstName} ${payload.lastName} a été ajouté(e) comme membre.`,
+        type: "member_created",
+        priority: "normal",
+        targetExtensionId: payload.branchId,
+        targetDepartmentId: payload.departmentIds?.[0] || null,
+        link: "/membres"
+      });
+    } catch (err) {
+      console.error("Failed to create member_created notification:", err);
+    }
+
+    try {
+      const { createActivityLog } = await import('@/services/activityLogService');
+      await createActivityLog({
+        actionType: 'member_created',
+        module: 'members',
+        title: 'Ajout d\'un membre',
+        description: `Le membre ${payload.firstName} ${payload.lastName} a été enregistré dans le système.`,
+        status: 'success',
+        targetName: `${payload.firstName} ${payload.lastName}`,
+        extensionId: payload.branchId,
+        departmentId: payload.departmentIds?.[0]
+      });
+    } catch (err) {
+      console.error("Log member creation error:", err);
+    }
+  } catch (err) {
+    console.error("Failed inside createMember:", err);
+  }
 }
 
 export async function updateMember(memberId: string, payload: MemberUpsertInput): Promise<void> {
@@ -71,6 +132,34 @@ export async function updateMember(memberId: string, payload: MemberUpsertInput)
     memberId,
     payload: { ...payload, phone: normalizePhone(payload.phone) },
   });
+
+  // Client-side fallback to save avatarUrl if the Edge Function doesn't support/write it
+  if (payload.avatarUrl !== undefined) {
+    const { error: avatarError } = await supabase
+      .from('church_members')
+      .update({ avatar_url: payload.avatarUrl })
+      .eq('id', memberId);
+    if (avatarError) {
+      console.warn("Client-side avatar update failed (likely RLS restrictions):", avatarError.message);
+    }
+  }
+
+  try {
+    const { createActivityLog } = await import('@/services/activityLogService');
+    await createActivityLog({
+      actionType: 'member_updated',
+      module: 'members',
+      title: 'Mise à jour d\'un membre',
+      description: `Les informations du membre ${payload.firstName} ${payload.lastName} ont été modifiées.`,
+      status: 'success',
+      targetId: memberId,
+      targetName: `${payload.firstName} ${payload.lastName}`,
+      extensionId: payload.branchId,
+      departmentId: payload.departmentIds?.[0]
+    });
+  } catch (err) {
+    console.error("Log member update error:", err);
+  }
 }
 
 export async function deleteMember(memberId: string): Promise<void> {
@@ -80,8 +169,8 @@ export async function deleteMember(memberId: string): Promise<void> {
 async function invokeMembersWrite(
   action: MembersWriteAction,
   body: { memberId?: string; payload?: MemberUpsertInput },
-): Promise<void> {
-  const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string }>('members-write', {
+): Promise<{ success?: boolean; error?: string; id?: string }> {
+  const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string; id?: string }>('members-write', {
     body: {
       action,
       ...body,
@@ -106,4 +195,6 @@ async function invokeMembersWrite(
   if (!data?.success) {
     throw new Error(data?.error || 'Operation membres non confirmee par le serveur.');
   }
+
+  return data || {};
 }

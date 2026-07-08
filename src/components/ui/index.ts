@@ -7,5 +7,6 @@ export * from './Modal';
 export * from './SearchInput';
 export * from './PhotoUpload';
 export * from './AppSwitch';
+export * from './AppCombobox';
 
 
