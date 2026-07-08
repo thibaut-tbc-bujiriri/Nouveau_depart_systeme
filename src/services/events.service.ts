@@ -123,7 +123,7 @@ export async function createEvent(payload: EventUpsertInput): Promise<void> {
       priority: "normal",
       targetExtensionId: payload.branchId,
       targetDepartmentId: payload.organizerDepartmentId || null,
-      link: "/evenements"
+      link: "/events"
     });
   } catch (err) {
     console.error("Failed to create event_created notification:", err);
@@ -180,7 +180,7 @@ export async function updateEvent(eventId: string, payload: EventUpsertInput): P
       priority: "normal",
       targetExtensionId: payload.branchId,
       targetDepartmentId: payload.organizerDepartmentId || null,
-      link: "/evenements"
+      link: "/events"
     });
   } catch (err) {
     console.error("Failed to create event_updated notification:", err);

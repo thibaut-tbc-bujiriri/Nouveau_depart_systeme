@@ -28,7 +28,7 @@ export function ReportLayout({
   children,
 }: ReportLayoutProps) {
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm max-w-5xl mx-auto print:border-none print:shadow-none print:p-0">
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm max-w-5xl mx-auto print:border-none print:shadow-none print:p-0 print-container">
       {/* Official Header */}
       <ReportHeader
         title={title}

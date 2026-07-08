@@ -594,6 +594,7 @@ export function ReportsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        className="print:hidden"
         title="Rapports & États de sortie"
         description="Générez des fiches et listes opérationnelles ou consultez les rapports d'activités archivés."
         actions={
@@ -622,7 +623,7 @@ export function ReportsPage() {
       />
 
       {activeTab === 'generate' ? (
-        <div className="grid gap-6 lg:grid-cols-4 items-start">
+        <div className="grid gap-6 lg:grid-cols-4 items-start print:block print:w-full print:p-0">
           {/* Left panel: template selector */}
           <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-4 print:hidden max-h-[80vh] overflow-y-auto">
             {user.role === 'superadmin' && (
@@ -857,7 +858,7 @@ export function ReportsPage() {
           </div>
 
           {/* Right panel: report preview and filters */}
-          <div className="lg:col-span-3 space-y-6">
+          <div className="lg:col-span-3 space-y-6 print:col-span-4 print:w-full print:p-0">
             <ReportFilters>
               <div className="grid gap-4 md:grid-cols-4 flex-1">
                 <FormFieldWrapper label="Période du rapport">

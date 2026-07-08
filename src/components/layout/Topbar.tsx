@@ -427,7 +427,7 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
   };
 
   return (
-    <header className="shrink-0 border-b border-slate-100 bg-white px-6 py-3.5 shadow-sm">
+    <header className="shrink-0 border-b border-slate-100 bg-white px-6 py-3.5 shadow-sm print:hidden">
       <div className="flex items-center justify-between gap-4">
         {/* Left Search Bar */}
         <div className="flex items-center gap-3 flex-1 lg:max-w-xs">
@@ -529,7 +529,16 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
                         onClick={async () => {
                           await handleMarkAsRead(n.id);
                           if (n.link) {
-                            navigate(n.link);
+                            let targetLink = n.link;
+                            // Map French/unmatched links to correct router paths
+                            if (targetLink === '/utilisateurs') targetLink = '/users';
+                            else if (targetLink === '/membres') targetLink = '/members';
+                            else if (targetLink === '/evenements') targetLink = '/events';
+                            else if (targetLink === '/departements') targetLink = '/departments';
+                            else if (targetLink === '/extensions') targetLink = '/branches';
+                            else if (targetLink === '/activities' || targetLink === '/activites') targetLink = '/dashboard';
+
+                            navigate(targetLink);
                           }
                           setIsNotificationOpen(false);
                         }}
@@ -554,7 +563,7 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
                             {formatRelativeTime(n.createdAt)}
                           </p>
                         </div>
-
+ 
                         {/* Trash Button */}
                         <button
                           onClick={async (e) => {
@@ -570,13 +579,13 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
                     ))
                   )}
                 </div>
-
+ 
                 {/* Footer link */}
                 <div className="p-3 border-t border-slate-50 text-center bg-slate-50/30">
                   <button
                     onClick={() => {
                       setIsNotificationOpen(false);
-                      navigate('/activities');
+                      navigate('/dashboard');
                     }}
                     className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-600 hover:text-teal-700 hover:underline transition-colors"
                   >

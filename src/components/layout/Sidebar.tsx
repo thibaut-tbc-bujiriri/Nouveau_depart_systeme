@@ -319,7 +319,7 @@ export function Sidebar({
     <>
       <aside
         className={cn(
-          "hidden h-screen shrink-0 overflow-y-auto bg-gradient-to-b from-[#0a1424] to-[#0c1c38] lg:block transition-all duration-300 ease-in-out",
+          "hidden h-screen shrink-0 overflow-y-auto bg-gradient-to-b from-[#0a1424] to-[#0c1c38] lg:block transition-all duration-300 ease-in-out print:hidden",
           isCollapsed ? "w-20" : "w-72"
         )}
       >
@@ -328,8 +328,8 @@ export function Sidebar({
           onToggleCollapse={onToggleCollapse}
         />
       </aside>
-
-      <div className={cn('fixed inset-0 z-40 lg:hidden', isMobileOpen ? 'block' : 'hidden')}>
+ 
+      <div className={cn('fixed inset-0 z-40 lg:hidden print:hidden', isMobileOpen ? 'block' : 'hidden')}>
         <button className="absolute inset-0 bg-slate-950/60" onClick={onCloseMobile} aria-label="Fermer le menu" />
         <aside className="relative h-full w-72 bg-gradient-to-b from-[#0a1424] to-[#0c1c38] shadow-xl">
           <button onClick={onCloseMobile} className="absolute right-3 top-3 rounded-md p-1 text-slate-300 hover:bg-slate-800" aria-label="Fermer">

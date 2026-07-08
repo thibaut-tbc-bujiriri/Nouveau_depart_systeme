@@ -115,7 +115,7 @@ export async function createBranch(payload: BranchUpsertInput): Promise<void> {
       type: "extension_created",
       priority: "normal",
       targetRole: "superadmin",
-      link: "/extensions"
+      link: "/branches"
     });
   } catch (err) {
     console.error("Failed to create extension_created notification:", err);
@@ -162,7 +162,7 @@ export async function updateBranch(branchId: string, payload: BranchUpsertInput)
       type: "extension_updated",
       priority: "normal",
       targetExtensionId: branchId,
-      link: "/extensions"
+      link: "/branches"
     });
   } catch (err) {
     console.error("Failed to create extension_updated notification:", err);

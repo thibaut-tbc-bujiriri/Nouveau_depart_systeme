@@ -79,7 +79,7 @@ export async function createDepartment(payload: DepartmentUpsertInput): Promise<
       type: "department_created",
       priority: "normal",
       targetExtensionId: payload.branchId,
-      link: "/departements"
+      link: "/departments"
     });
 
     if (payload.managerId) {
@@ -91,7 +91,7 @@ export async function createDepartment(payload: DepartmentUpsertInput): Promise<
         type: "department_responsible_assigned",
         priority: "normal",
         targetExtensionId: payload.branchId,
-        link: "/departements"
+        link: "/departments"
       });
 
       await createNotification({
@@ -100,7 +100,7 @@ export async function createDepartment(payload: DepartmentUpsertInput): Promise<
         type: "department_responsible_assigned",
         priority: "normal",
         targetUserId: payload.managerId,
-        link: "/departements"
+        link: "/departments"
       });
     }
   } catch (err) {
@@ -164,7 +164,7 @@ export async function updateDepartment(departmentId: string, payload: Department
       type: "department_updated",
       priority: "normal",
       targetExtensionId: payload.branchId,
-      link: "/departements"
+      link: "/departments"
     });
 
     if (payload.managerId && payload.managerId !== oldManagerId) {
@@ -176,7 +176,7 @@ export async function updateDepartment(departmentId: string, payload: Department
         type: "department_responsible_assigned",
         priority: "normal",
         targetExtensionId: payload.branchId,
-        link: "/departements"
+        link: "/departments"
       });
 
       await createNotification({
@@ -185,7 +185,7 @@ export async function updateDepartment(departmentId: string, payload: Department
         type: "department_responsible_assigned",
         priority: "normal",
         targetUserId: payload.managerId,
-        link: "/departements"
+        link: "/departments"
       });
     }
   } catch (err) {

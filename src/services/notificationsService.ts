@@ -109,6 +109,19 @@ function filterNotificationsForUser(notifications: AppNotification[], currentUse
  * Fetch all notifications visible to the current user.
  */
 export async function getNotificationsForCurrentUser(currentUser: Profile): Promise<AppNotification[]> {
+  // 1. Fetch notification deletes for this user
+  const { data: deletes, error: deletesError } = await supabase
+    .from('notification_deletes')
+    .select('notification_id')
+    .eq('user_id', currentUser.id);
+
+  if (deletesError) {
+    throw deletesError;
+  }
+
+  const deletedIds = new Set((deletes ?? []).map((d: any) => d.notification_id));
+
+  // 2. Fetch notifications
   const { data, error } = await supabase
     .from('notifications')
     .select('*')
@@ -118,7 +131,11 @@ export async function getNotificationsForCurrentUser(currentUser: Profile): Prom
     throw error ?? new Error('Impossible de charger les notifications.');
   }
 
-  const mapped = (data as NotificationRow[]).map(mapNotificationRowToNotification);
+  // 3. Map, exclude deleted IDs, and filter by user scope
+  const mapped = (data as NotificationRow[])
+    .map(mapNotificationRowToNotification)
+    .filter((n) => !deletedIds.has(n.id));
+
   return filterNotificationsForUser(mapped, currentUser);
 }
 

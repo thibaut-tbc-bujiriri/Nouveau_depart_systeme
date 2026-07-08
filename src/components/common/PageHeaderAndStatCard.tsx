@@ -1,15 +1,16 @@
-﻿import { cn } from '@/lib/cn';
+import { cn } from '@/lib/cn';
 import type { PropsWithChildren } from 'react';
 
 interface PageHeaderProps extends PropsWithChildren {
   title: string;
   description?: string;
   actions?: React.ReactNode;
+  className?: string;
 }
 
-export function PageHeader({ title, description, actions, children }: PageHeaderProps) {
+export function PageHeader({ title, description, actions, children, className }: PageHeaderProps) {
   return (
-    <div className="mb-5 space-y-3">
+    <div className={cn("mb-5 space-y-3", className)}>
       <div className={cn('flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between')}>
         <div>
           <h1 className="text-2xl font-semibold text-slate-900 sm:text-3xl">{title}</h1>

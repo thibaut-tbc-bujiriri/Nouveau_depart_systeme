@@ -211,7 +211,7 @@ export async function updateUserAccess(
         type: "role_changed",
         priority: "normal",
         targetExtensionId: payload.branchId || null,
-        link: "/utilisateurs"
+        link: "/users"
       });
 
       // 2. Personal notification for the user
@@ -400,7 +400,7 @@ export async function createManagedUser(payload: {
       type: "user_created",
       priority: "normal",
       targetExtensionId: payload.branchId || null,
-      link: "/utilisateurs"
+      link: "/users"
     });
 
     if (payload.role === 'department_manager' || payload.role === 'department_member') {

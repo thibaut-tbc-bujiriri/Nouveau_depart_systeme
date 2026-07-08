@@ -101,7 +101,7 @@ export async function createMember(payload: MemberUpsertInput): Promise<void> {
         priority: "normal",
         targetExtensionId: payload.branchId,
         targetDepartmentId: payload.departmentIds?.[0] || null,
-        link: "/membres"
+        link: "/members"
       });
     } catch (err) {
       console.error("Failed to create member_created notification:", err);
