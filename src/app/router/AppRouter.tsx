@@ -3,6 +3,7 @@ import { AuthLayout } from '@/layouts/AuthLayout';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
 import {
   BranchesPage,
+  CardScannerPage,
   DashboardPage,
   DepartmentDetailsPage,
   DepartmentsPage,
@@ -37,7 +38,9 @@ export function AppRouter() {
           <Route path="/departments/:id" element={<DepartmentDetailsPage />} />
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/events" element={<EventsPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/profile" element={<ProfilePage />} />          <Route element={<RoleGuard allowedRoles={['superadmin', 'admin']} />}>
+            <Route path="/card-scanner" element={<CardScannerPage />} />
+          </Route>
 
           <Route element={<RoleGuard allowedRoles={['superadmin', 'admin', 'department_manager']} />}>
             <Route path="/members" element={<MembersPage />} />

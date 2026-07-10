@@ -1,4 +1,4 @@
-﻿export * from './BranchesPage';
+export * from './BranchesPage';
 export * from './DashboardPage';
 export * from './DepartmentDetailsPage';
 export * from './DepartmentsPage';
@@ -15,3 +15,4 @@ export * from './ServicesPage';
 export * from './SettingsPage';
 export * from './UsersPage';
 
+export * from './CardScannerPage';

@@ -3,6 +3,8 @@ import { AppButton, AppInput, AppSelect, SearchInput, AppCombobox } from '@/comp
 import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import { useUsersManagement } from '@/hooks/useUsersManagement';
+import { UserCardModal } from '@/components/cards';
+import type { ManagedUser } from '@/services/users.service';
 import { hasModulePermission } from '@/lib/permissions';
 import type { Role } from '@/types';
 import { uploadPhoto } from '@/utils/storage';
@@ -21,6 +23,7 @@ import {
   Shield,
   Lock,
   Building2,
+  CreditCard,
   Briefcase,
   Mail,
   UserCheck,
@@ -346,6 +349,7 @@ export function UsersPage() {
   const [query, setQuery] = useState('');
   const [editingUser, setEditingUser] = useState<EditingUserState | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [cardUser, setCardUser] = useState<ManagedUser | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newUser, setNewUser] = useState<NewUserState>(initialNewUserState);
   const [editSuccess, setEditSuccess] = useState(false);
@@ -554,6 +558,11 @@ export function UsersPage() {
                       Modifier
                     </AppButton>
                   )}
+                  {user.role === 'superadmin' && (
+                    <AppButton size="sm" variant="secondary" onClick={() => setCardUser(item)}>
+                      <CreditCard className="size-4" /> Carte
+                    </AppButton>
+                  )}
                   {canDelete && (
                     <AppButton
                       size="sm"
@@ -570,6 +579,14 @@ export function UsersPage() {
           ]}
         />
       )}
+
+      <UserCardModal
+        isOpen={Boolean(cardUser)}
+        onClose={() => setCardUser(null)}
+        user={cardUser}
+        branchName={cardUser ? branches.find((branch) => branch.id === cardUser.branchId)?.name : undefined}
+        departmentNames={cardUser ? cardUser.departmentIds.map((id) => departments.find((department) => department.id === id)?.name).filter((name): name is string => Boolean(name)) : []}
+      />
 
       {/* EDIT USER ACCESS / RIGHTS MODAL */}
       <Modal

@@ -19,6 +19,7 @@ import {
   LayoutDashboard,
   Network,
   Settings,
+  ScanLine,
   Shield,
   Sliders,
   UserCircle2,
@@ -41,6 +42,7 @@ const iconMap: Record<string, LucideIcon> = {
   settings: Settings,
   'user-circle-2': UserCircle2,
   'user-cog': UserCog,
+  'scan-line': ScanLine,
 };
 
 const menuCategories = [
@@ -70,7 +72,7 @@ const menuCategories = [
     label: 'GESTION & SYSTÈME',
     type: 'group' as const,
     icon: Sliders,
-    subKeys: ['finances', 'reports', 'settings', 'profile'],
+    subKeys: ['finances', 'reports', 'card-scanner', 'settings', 'profile'],
   },
 ];
 

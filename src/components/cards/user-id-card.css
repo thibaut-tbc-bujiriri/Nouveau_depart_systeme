@@ -1,0 +1,454 @@
+.user-id-card-pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  justify-content: center;
+  margin: 16px 0;
+}
+
+.user-id-card {
+  position: relative;
+  isolation: isolate;
+  width: 85.6mm;
+  height: 125mm;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 6mm;
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  font-family: 'Inter', system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+/* Header Banner Styling */
+.id-card-header-banner {
+  background: linear-gradient(135deg, #0f1e36 0%, #081222 100%);
+  color: #ffffff;
+  padding: 4mm 4mm 3mm;
+  text-align: center;
+  position: relative;
+  border-bottom: 1.5mm solid #0d9488; /* Teal border accent */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.id-card-logo-container {
+  background: #ffffff;
+  border-radius: 50%;
+  width: 11mm;
+  height: 11mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1mm;
+}
+
+.id-card-logo-img {
+  width: 8.5mm;
+  height: 8.5mm;
+  object-fit: contain;
+}
+
+.id-card-org-subtitle {
+  font-size: 1.65mm;
+  font-weight: 500;
+  letter-spacing: 0.1mm;
+  text-transform: uppercase;
+  color: #cbd5e1;
+  margin: 0;
+  line-height: 1.2;
+  max-width: 75mm;
+}
+
+.id-card-org-title {
+  font-size: 6.5mm;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 1.2mm;
+  margin: 0.5mm 0;
+  line-height: 1;
+  text-indent: 1.2mm; /* Align letter-spacing */
+}
+
+.id-card-type-tag {
+  background: #0d9488;
+  color: #ffffff;
+  font-size: 2.1mm;
+  font-weight: 700;
+  padding: 0.6mm 3mm;
+  border-radius: 1mm;
+  text-transform: uppercase;
+  letter-spacing: 0.2mm;
+  margin-top: 1mm;
+  display: inline-block;
+}
+
+/* Profile Section Styling */
+.id-card-profile-section {
+  display: flex;
+  gap: 3.5mm;
+  padding: 4mm 4mm 3mm;
+  align-items: center;
+  border-bottom: 0.25mm solid #f1f5f9;
+}
+
+.id-card-photo-wrapper {
+  width: 22mm;
+  height: 22mm;
+  border-radius: 4mm;
+  border: 1px solid #94a3b8;
+  overflow: hidden;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+}
+
+.id-card-photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.id-card-initials {
+  font-size: 7mm;
+  font-weight: 800;
+  color: #334155;
+  background: #e2e8f0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.id-card-name-wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: left;
+  flex: 1;
+  min-width: 0;
+}
+
+.id-card-user-name {
+  font-size: 4.8mm;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.25;
+  word-wrap: break-word;
+}
+
+.id-card-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2mm;
+  margin-top: 2mm;
+  align-items: flex-start;
+}
+
+.id-card-badge-role {
+  background: #0f1e36;
+  color: #ffffff;
+  font-size: 2.2mm;
+  font-weight: 700;
+  padding: 0.6mm 2mm;
+  border-radius: 1mm;
+  display: inline-flex;
+  align-items: center;
+}
+
+.id-card-badge-access {
+  font-size: 2.2mm;
+  font-weight: 700;
+  padding: 0.6mm 2mm;
+  border-radius: 1mm;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Bottom Split Area styling */
+.id-card-bottom-grid {
+  display: flex;
+  flex: 1;
+  padding: 3mm 4mm;
+  gap: 2mm;
+}
+
+.id-card-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.3mm;
+  width: 48mm;
+  flex-shrink: 0;
+}
+
+.id-card-info-item {
+  display: flex;
+  align-items: center;
+  gap: 1.8mm;
+}
+
+.id-card-icon {
+  width: 4.5mm;
+  height: 4.5mm;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.id-card-text {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  min-width: 0;
+}
+
+.id-card-label {
+  font-size: 1.75mm;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05mm;
+  line-height: 1;
+  margin-bottom: 0.2mm;
+}
+
+.id-card-value {
+  font-size: 2.15mm;
+  color: #0f172a;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.id-card-right-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 1mm;
+}
+
+.id-card-extension-box {
+  border: 1px solid #22d3ee; /* Cyan border */
+  border-radius: 1.5mm;
+  width: 100%;
+  text-align: center;
+  overflow: hidden;
+}
+
+.id-card-extension-hdr {
+  background: #0d9488; /* Teal bg */
+  color: #ffffff;
+  font-size: 1.55mm;
+  font-weight: 700;
+  padding: 0.5mm 0;
+  text-transform: uppercase;
+}
+
+.id-card-extension-val {
+  background: #ffffff;
+  color: #083344;
+  font-size: 2.5mm;
+  font-weight: 800;
+  padding: 1.2mm 0;
+}
+
+.id-card-extension-box-empty {
+  height: 6mm;
+}
+
+.id-card-qr-frame {
+  border: 1px solid #cbd5e1;
+  padding: 1mm;
+  background: #ffffff;
+  border-radius: 2mm;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+.id-card-qr-footer-text {
+  font-size: 1.5mm;
+  font-weight: 700;
+  color: #0d9488;
+  border: 1px solid #0d9488;
+  border-radius: 0.8mm;
+  padding: 0.4mm 1.5mm;
+  text-transform: uppercase;
+  margin-top: 1mm;
+  letter-spacing: 0.1mm;
+}
+
+/* Footer elements */
+.id-card-footer-auth {
+  background: #0f1e36;
+  color: #e2e8f0;
+  text-align: center;
+  font-size: 2mm;
+  padding: 1.5mm;
+  border-top: 1px solid #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: auto;
+}
+
+/* BACK OF THE CARD STYLES */
+.user-id-card--back {
+  background: #ffffff;
+  justify-content: space-between;
+}
+
+.id-card-org-subtitle-back {
+  font-size: 1.6mm;
+  font-weight: 500;
+  color: #cbd5e1;
+  text-transform: uppercase;
+  margin-top: 1mm;
+  max-width: 70mm;
+  line-height: 1.2;
+}
+
+.id-card-back-guidelines {
+  display: flex;
+  flex-direction: column;
+  gap: 3.5mm;
+  padding: 5mm 6mm;
+  flex: 1;
+}
+
+.id-card-guideline-item {
+  display: flex;
+  gap: 3mm;
+  text-align: left;
+}
+
+.id-card-guideline-icon {
+  width: 7mm;
+  height: 7mm;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0d9488;
+  background: #f8fafc;
+  flex-shrink: 0;
+}
+
+.id-card-guideline-content h3 {
+  margin: 0;
+  font-size: 2.2mm;
+  font-weight: 800;
+  color: #0f1e36;
+  letter-spacing: 0.1mm;
+}
+
+.id-card-guideline-content p {
+  margin: 0.5mm 0 0;
+  font-size: 1.85mm;
+  color: #475569;
+  line-height: 1.35;
+}
+
+.id-card-back-footer-grid {
+  display: flex;
+  padding: 3mm 6mm;
+  border-top: 1px dashed #cbd5e1;
+  align-items: center;
+  gap: 4mm;
+  margin-top: auto;
+}
+
+.id-card-back-instructions {
+  flex: 1;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 2.5mm;
+}
+
+.id-card-back-instructions-icon {
+  opacity: 0.25;
+  flex-shrink: 0;
+}
+
+.id-card-back-instructions p {
+  margin: 0;
+  font-size: 1.75mm;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.id-card-back-qr-box {
+  border: 1px solid #cbd5e1;
+  padding: 0.8mm;
+  border-radius: 1.5mm;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.id-card-back-footer-bar {
+  background: #0f1e36;
+  color: #94a3b8;
+  font-size: 2mm;
+  padding: 1.8mm 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 500;
+  border-top: 1px solid #1e293b;
+}
+
+/* Printing logic overrides */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+  
+  body * {
+    visibility: hidden !important;
+  }
+  
+  .id-card-print-area, .id-card-print-area * {
+    visibility: visible !important;
+  }
+  
+  .id-card-print-area {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    background: #ffffff !important;
+  }
+  
+  .id-card-print-area .user-id-card-pair {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 12mm !important;
+    justify-content: flex-start !important;
+  }
+  
+  .id-card-print-area .user-id-card {
+    box-shadow: none !important;
+    border: 1px solid #94a3b8 !important;
+    page-break-inside: avoid;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+}

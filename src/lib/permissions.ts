@@ -24,7 +24,8 @@ export type Permission =
   | 'events:view'
   | 'reports:view'
   | 'settings:view'
-  | 'profile:view';
+  | 'profile:view'
+  | 'card-scanner:view';
 
 
 
@@ -190,6 +191,10 @@ export const hasPermission = (role: Role, permission: Permission): boolean => {
     return true;
   }
 
+  if (permission === 'card-scanner:view') {
+    return role === 'admin';
+  }
+
   const parts = permission.split(':');
   const moduleKey = parts[0] as ModulePermissionKey;
   const actionStr = parts[1];
@@ -237,6 +242,7 @@ const navItemPermissionMap: Record<NavItem['key'], Permission> = {
   settings: 'settings:view',
   profile: 'profile:view',
   users: 'users:view',
+  'card-scanner': 'card-scanner:view',
 };
 
 export const hasBranchAccess = (user: Profile, branchId: string) => {
