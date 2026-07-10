@@ -38,8 +38,11 @@ export function DepartmentManagerDashboard({ user, dashboard }: DepartmentManage
   const performance = dashboard.departmentPerformance.filter((item) => item.departmentId === departmentId);
   const weeklyProgram = getWeeklyProgram();
 
+  const rawDept = dashboard.rawDepartments?.find((item) => item.id === departmentId);
+  const managerExists = !!(rawDept?.managerId || rawDept?.manager_profile_id || rawDept?.responsibleName);
+
   const rolesDistribution = [
-    { name: 'Managers', value: currentDepartment?.managerId ? 1 : 0 },
+    { name: 'Managers', value: managerExists ? 1 : 0 },
     { name: 'Membres', value: Math.max(currentDepartment?.members ?? 0, 0) },
   ];
 
