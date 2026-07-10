@@ -39,7 +39,7 @@ export function DepartmentManagerDashboard({ user, dashboard }: DepartmentManage
   const weeklyProgram = getWeeklyProgram();
 
   const rolesDistribution = [
-    { name: 'Managers', value: 1 },
+    { name: 'Managers', value: currentDepartment?.managerId ? 1 : 0 },
     { name: 'Membres', value: Math.max(currentDepartment?.members ?? 0, 0) },
   ];
 
@@ -48,9 +48,9 @@ export function DepartmentManagerDashboard({ user, dashboard }: DepartmentManage
       <DailyVerseCard user={user} />
 
       <section className="grid gap-4 md:grid-cols-3">
-        <AdvancedStatCard label="Departement" value={currentDepartment?.departmentName ?? 'Non defini'} subtitle="Vue responsable" icon={ClipboardCheck} trend={7.2} />
-        <AdvancedStatCard label="Utilisateurs lies" value={String(currentDepartment?.members ?? 0)} subtitle="Equipe interne" icon={UserRoundCheck} tone="success" trend={5.8} />
-        <AdvancedStatCard label="Objectifs" value={String(performance[0]?.target ?? 0)} subtitle="Cycle actuel" icon={ListChecks} trend={4.1} />
+        <AdvancedStatCard label="Departement" value={currentDepartment?.departmentName ?? 'Non defini'} subtitle="Vue responsable" icon={ClipboardCheck} />
+        <AdvancedStatCard label="Utilisateurs lies" value={String(currentDepartment?.members ?? 0)} subtitle="Equipe interne" icon={UserRoundCheck} tone="success" />
+        <AdvancedStatCard label="Objectifs" value={String(performance[0]?.target ?? 0)} subtitle="Cycle actuel" icon={ListChecks} />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-2">

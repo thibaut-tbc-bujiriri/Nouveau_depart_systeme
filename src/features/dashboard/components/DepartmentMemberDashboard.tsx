@@ -29,9 +29,9 @@ export function DepartmentMemberDashboard({ user, dashboard }: DepartmentMemberD
       <DailyVerseCard user={user} />
 
       <section className="grid gap-4 md:grid-cols-3">
-        <AdvancedStatCard label="Mon departement" value={department?.departmentName ?? 'N/A'} subtitle="Service principal" icon={UsersRound} trend={2.3} />
-        <AdvancedStatCard label="Annonces" value={String(activities.length)} subtitle="Informations recentes" icon={BellRing} tone="success" trend={1.7} />
-        <AdvancedStatCard label="Evenements" value={String(upcoming.length)} subtitle="Calendrier simplifie" icon={CalendarDays} trend={3.1} />
+        <AdvancedStatCard label="Mon departement" value={department?.departmentName ?? 'N/A'} subtitle="Service principal" icon={UsersRound} />
+        <AdvancedStatCard label="Annonces" value={String(activities.length)} subtitle="Informations recentes" icon={BellRing} tone="success" />
+        <AdvancedStatCard label="Evenements" value={String(upcoming.length)} subtitle="Calendrier simplifie" icon={CalendarDays} />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-2">

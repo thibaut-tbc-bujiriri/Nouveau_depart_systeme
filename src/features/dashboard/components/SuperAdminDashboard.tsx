@@ -45,7 +45,6 @@ export function SuperAdminDashboard({ user, dashboard }: SuperAdminDashboardProp
   const branchesData = dashboard.branchesData || [];
   const activities = dashboard.recentActivities || [];
   const activeMembers = dashboard.counts.activeMembers;
-  const newMembers = dashboard.counts.newMembers;
   const activeDepartments = dashboard.counts.activeDepartments;
 
   return (
@@ -56,34 +55,34 @@ export function SuperAdminDashboard({ user, dashboard }: SuperAdminDashboardProp
       <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <AdvancedStatCard
           label="Extensions"
-          value={String(branchesData.length || 24)}
+          value={String(branchesData.length)}
           subtitle="ce mois"
           icon={Building2}
-          trend={12}
+          trend={0}
           color="teal"
         />
         <AdvancedStatCard
           label="Membres"
-          value={activeMembers ? activeMembers.toLocaleString('fr-FR') : '1.248'}
+          value={activeMembers.toLocaleString('fr-FR')}
           subtitle="ce mois"
           icon={Users}
-          trend={8.5}
+          trend={0}
           color="blue"
         />
         <AdvancedStatCard
           label="Départements"
-          value={String(activeDepartments || 15)}
+          value={String(activeDepartments)}
           subtitle="ce mois"
           icon={Network}
-          trend={7}
+          trend={0}
           color="purple"
         />
         <AdvancedStatCard
           label="Événements"
-          value={String(dashboard.upcomingEvents.length || 32)}
+          value={String(dashboard.counts.upcomingEventsCount)}
           subtitle="ce mois"
           icon={CalendarDays}
-          trend={15}
+          trend={0}
           color="orange"
         />
       </section>
@@ -139,9 +138,9 @@ export function SuperAdminDashboard({ user, dashboard }: SuperAdminDashboardProp
             <div className="h-44 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
-                  data={branchesData.map((item, idx) => ({
+                  data={branchesData.map((item) => ({
                     name: item.branchName,
-                    members: item.members || (idx * 5 + 10),
+                    members: item.members,
                   }))}
                   margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
                 >
@@ -172,15 +171,13 @@ export function SuperAdminDashboard({ user, dashboard }: SuperAdminDashboardProp
             <div className="text-center">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Nouvelles extensions</p>
               <div className="flex items-center justify-center gap-1.5 mt-1">
-                <span className="text-lg font-bold text-slate-800">24</span>
-                <span className="text-xs font-bold text-teal-600">↑ 12%</span>
+                <span className="text-lg font-bold text-slate-800">{dashboard.counts.newBranches}</span>
               </div>
             </div>
             <div className="text-center border-l border-slate-100">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Extensions actives</p>
               <div className="flex items-center justify-center gap-1.5 mt-1">
-                <span className="text-lg font-bold text-slate-800">217</span>
-                <span className="text-xs font-bold text-teal-600">↑ 9%</span>
+                <span className="text-lg font-bold text-slate-800">{dashboard.counts.activeBranches}</span>
               </div>
             </div>
           </div>
@@ -219,7 +216,7 @@ export function SuperAdminDashboard({ user, dashboard }: SuperAdminDashboardProp
                         {branch.pastorName || 'À définir'}
                       </td>
                       <td className="py-2.5 text-xs text-slate-400 text-right font-medium">
-                        {branch.createdAt ? formatDate(branch.createdAt).slice(0, 10) : '21/05/2026'}
+                        {branch.createdAt ? formatDate(branch.createdAt).slice(0, 10) : 'N/A'}
                       </td>
                     </tr>
                   ))}
@@ -247,8 +244,7 @@ export function SuperAdminDashboard({ user, dashboard }: SuperAdminDashboardProp
           <div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Membres actifs</p>
             <div className="flex items-baseline gap-2 mt-0.5">
-              <span className="text-xl font-extrabold text-slate-800">1,102</span>
-              <span className="text-xs font-bold text-teal-600">↑ 8.3%</span>
+              <span className="text-xl font-extrabold text-slate-800">{activeMembers.toLocaleString('fr-FR')}</span>
             </div>
           </div>
         </div>
@@ -261,8 +257,7 @@ export function SuperAdminDashboard({ user, dashboard }: SuperAdminDashboardProp
           <div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nouveaux membres</p>
             <div className="flex items-baseline gap-2 mt-0.5">
-              <span className="text-xl font-extrabold text-slate-800">{String(newMembers || 46)}</span>
-              <span className="text-xs font-bold text-teal-600">↑ 11%</span>
+              <span className="text-xl font-extrabold text-slate-800">{dashboard.counts.newMembers}</span>
             </div>
           </div>
         </div>
@@ -275,7 +270,7 @@ export function SuperAdminDashboard({ user, dashboard }: SuperAdminDashboardProp
           <div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Événements à venir</p>
             <div className="flex items-baseline gap-2 mt-0.5">
-              <span className="text-xl font-extrabold text-slate-800">{String(dashboard.upcomingEvents.length || 12)}</span>
+              <span className="text-xl font-extrabold text-slate-800">{dashboard.counts.upcomingEventsCount}</span>
               <span className="text-xs font-medium text-slate-400">ce mois</span>
             </div>
           </div>
@@ -289,8 +284,8 @@ export function SuperAdminDashboard({ user, dashboard }: SuperAdminDashboardProp
           <div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Réunions cette semaine</p>
             <div className="flex items-baseline gap-2 mt-0.5">
-              <span className="text-xl font-extrabold text-slate-800">18</span>
-              <span className="text-xs font-medium text-slate-400">2 aujourd'hui</span>
+              <span className="text-xl font-extrabold text-slate-800">{dashboard.counts.servicesThisWeek}</span>
+              <span className="text-xs font-medium text-slate-400">{dashboard.counts.servicesToday} aujourd'hui</span>
             </div>
           </div>
         </div>

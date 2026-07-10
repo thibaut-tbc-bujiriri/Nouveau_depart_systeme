@@ -68,11 +68,11 @@ export function AdminDashboard({ user, dashboard }: AdminDashboardProps) {
       <DailyVerseCard user={user} />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <AdvancedStatCard label="Membres actifs" value={String(activeMembers)} subtitle="Extension locale" icon={Users} trend={5.6} tone="success" />
-        <AdvancedStatCard label="Nouveaux membres" value={String(newMembers)} subtitle="30 derniers jours" icon={UserPlus} trend={3.8} />
-        <AdvancedStatCard label="Cultes cette semaine" value={String(dashboard.counts.servicesThisWeek)} subtitle="Programme local" icon={Church} trend={1.9} />
-        <AdvancedStatCard label="Finances du mois" value={formatMoney(totalIncome - totalExpense)} subtitle="Solde semestriel" icon={Wallet} trend={4.2} />
-        <AdvancedStatCard label="Departements actifs" value={String(dashboard.counts.activeDepartments)} subtitle="Unites en service" icon={Landmark} trend={3.1} />
+        <AdvancedStatCard label="Membres actifs" value={String(activeMembers)} subtitle="Extension locale" icon={Users} tone="success" />
+        <AdvancedStatCard label="Nouveaux membres" value={String(newMembers)} subtitle="30 derniers jours" icon={UserPlus} />
+        <AdvancedStatCard label="Cultes cette semaine" value={String(dashboard.counts.servicesThisWeek)} subtitle="Programme local" icon={Church} />
+        <AdvancedStatCard label="Finances du mois" value={formatMoney(totalIncome - totalExpense)} subtitle="Solde semestriel" icon={Wallet} />
+        <AdvancedStatCard label="Departements actifs" value={String(dashboard.counts.activeDepartments)} subtitle="Unites en service" icon={Landmark} />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-2">

@@ -33,6 +33,44 @@ import { getServices } from '@/services/services.service';
 import type { Profile } from '@/types';
 import { useEffect, useMemo, useState } from 'react';
 
+function isWithin30Days(dateStr?: string): boolean {
+  if (!dateStr) return false;
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return false;
+  const now = new Date();
+  const diffTime = now.getTime() - date.getTime();
+  const diffDays = diffTime / (1000 * 60 * 60 * 24);
+  return diffDays >= 0 && diffDays <= 30;
+}
+
+function isWithinCurrentWeek(dateStr?: string): boolean {
+  if (!dateStr) return false;
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return false;
+  const now = new Date();
+  const currentDay = now.getDay();
+  const distanceToMonday = currentDay === 0 ? 6 : currentDay - 1;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - distanceToMonday);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  return date >= monday && date <= sunday;
+}
+
+function isToday(dateStr?: string): boolean {
+  if (!dateStr) return false;
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return false;
+  const now = new Date();
+  return (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+  );
+}
+
 interface DashboardDataState {
   branchesData: BranchStatsPoint[];
   membersByCategory: MembersCategoryPoint[];
@@ -45,6 +83,12 @@ interface DashboardDataState {
   recentActivities: ActivityItem[];
   departmentPerformance: DepartmentPerformancePoint[];
   reports: ReportItem[];
+  rawBranches: any[];
+  rawMembers: any[];
+  rawDepartments: any[];
+  rawEvents: any[];
+  rawServices: any[];
+  rawReports: any[];
 }
 
 const emptyData: DashboardDataState = {
@@ -59,6 +103,12 @@ const emptyData: DashboardDataState = {
   recentActivities: [],
   departmentPerformance: [],
   reports: [],
+  rawBranches: [],
+  rawMembers: [],
+  rawDepartments: [],
+  rawEvents: [],
+  rawServices: [],
+  rawReports: [],
 };
 
 interface DashboardCacheEntry {
@@ -98,6 +148,44 @@ function filterByRole(data: DashboardDataState, user: Profile | null): Dashboard
       return departmentId ? user.departmentIds.includes(departmentId) : true;
     });
 
+  const rawBranchesFilter = (items: any[]) =>
+    items.filter((item) => item.id === user.branchId);
+
+  const rawMembersFilter = (items: any[]) => {
+    let list = items.filter((item) => item.branchId === user.branchId);
+    if (user.role === 'department_manager' || user.role === 'department_member') {
+      list = list.filter((m) => m.departmentIds?.some((id: string) => user.departmentIds.includes(id)));
+    }
+    return list;
+  };
+
+  const rawDepartmentsFilter = (items: any[]) => {
+    let list = items.filter((item) => item.branchId === user.branchId);
+    if (user.role === 'department_manager' || user.role === 'department_member') {
+      list = list.filter((d) => user.departmentIds.includes(d.id));
+    }
+    return list;
+  };
+
+  const rawEventsFilter = (items: any[]) => {
+    let list = items.filter((item) => item.branchId === user.branchId);
+    if (user.role === 'department_manager' || user.role === 'department_member') {
+      list = list.filter((e) => e.organizerDepartmentId ? user.departmentIds.includes(e.organizerDepartmentId) : true);
+    }
+    return list;
+  };
+
+  const rawServicesFilter = (items: any[]) =>
+    items.filter((item) => item.branchId === user.branchId);
+
+  const rawReportsFilter = (items: any[]) => {
+    let list = items.filter((item) => item.branchId === user.branchId);
+    if (user.role === 'department_manager' || user.role === 'department_member') {
+      list = list.filter((r) => r.departmentId ? user.departmentIds.includes(r.departmentId) : true);
+    }
+    return list;
+  };
+
   const scoped: DashboardDataState = {
     branchesData: branchFilter(data.branchesData),
     membersByCategory: branchFilter(data.membersByCategory),
@@ -110,6 +198,12 @@ function filterByRole(data: DashboardDataState, user: Profile | null): Dashboard
     recentActivities: branchFilter(data.recentActivities),
     departmentPerformance: branchFilter(data.departmentPerformance),
     reports: branchFilter(data.reports),
+    rawBranches: rawBranchesFilter(data.rawBranches),
+    rawMembers: rawMembersFilter(data.rawMembers),
+    rawDepartments: rawDepartmentsFilter(data.rawDepartments),
+    rawEvents: rawEventsFilter(data.rawEvents),
+    rawServices: rawServicesFilter(data.rawServices),
+    rawReports: rawReportsFilter(data.rawReports),
   };
 
   if (user.role === 'department_manager' || user.role === 'department_member') {
@@ -607,6 +701,12 @@ export function useDashboardStats(user: Profile | null) {
                   status: 'soumis' as const,
                 }))
               : [],
+          rawBranches: branches,
+          rawMembers: members,
+          rawDepartments: departments,
+          rawEvents: events,
+          rawServices: services,
+          rawReports: reportsTableRows,
         };
 
         setData(nextData);
@@ -647,18 +747,41 @@ export function useDashboardStats(user: Profile | null) {
   const scopedData = useMemo(() => filterByRole(data, user), [data, user]);
 
   const counts = useMemo(() => {
-    const activeMembers = scopedData.branchesData.reduce((sum, item) => sum + item.members, 0);
-    const activeDepartments = scopedData.membersByDepartment.length;
+    const rawBranches = scopedData.rawBranches || [];
+    const rawMembers = scopedData.rawMembers || [];
+    const rawDepartments = scopedData.rawDepartments || [];
+    const rawEvents = scopedData.rawEvents || [];
+    const rawServices = scopedData.rawServices || [];
+
+    const activeMembers = rawMembers.filter((m) => m.status === 'active').length;
+    const activeDepartments = rawDepartments.filter((d) => d.isActive).length;
+    const newMembers = rawMembers.filter((m) => isWithin30Days(m.joinedAt)).length;
+    
+    const upcomingEventsCount = rawEvents.filter((e) => {
+      const dateStr = e.date || e.eventDate || e.event_date;
+      if (!dateStr) return false;
+      const todayStr = new Date().toISOString().slice(0, 10);
+      return dateStr >= todayStr;
+    }).length;
+
+    const servicesThisWeek = rawServices.filter((s) => isWithinCurrentWeek(s.date)).length;
+    const servicesToday = rawServices.filter((s) => isToday(s.date)).length;
+
+    const newBranches = rawBranches.filter((b) => isWithin30Days(b.createdAt)).length;
+    const activeBranches = rawBranches.filter((b) => b.isActive).length;
     const financeNet = scopedData.financeMonthly.reduce((sum, item) => sum + item.income - item.expense, 0);
-    const servicesThisWeek = scopedData.attendance.slice(-7).length;
 
     return {
       activeMembers,
       activeDepartments,
       financeNet,
       servicesThisWeek,
-      newMembers: Math.max(Math.round(activeMembers * 0.08), 0),
-      localDepartments: user ? scopedData.membersByDepartment.length : 0,
+      servicesToday,
+      newMembers,
+      upcomingEventsCount,
+      newBranches,
+      activeBranches,
+      localDepartments: user ? rawDepartments.length : 0,
     };
   }, [scopedData, user]);
 
