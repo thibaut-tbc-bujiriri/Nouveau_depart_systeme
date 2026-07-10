@@ -5,3 +5,5 @@ export * from './ReportFilters';
 export * from './ReportActions';
 export * from './ReportEmptyState';
 export * from './ReportLayout';
+
+export * from './PrintableReport';

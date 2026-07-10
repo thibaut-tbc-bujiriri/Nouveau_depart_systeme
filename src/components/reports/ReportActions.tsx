@@ -8,7 +8,7 @@ interface ReportActionsProps {
 }
 
 export function ReportActions({
-  onPrint = () => window.print(),
+  onPrint,
   onExportCSV,
   isLoading = false,
 }: ReportActionsProps) {
