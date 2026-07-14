@@ -10,7 +10,9 @@ export const navItems: NavItem[] = [
   { key: 'finances', label: 'Finances', to: '/finances', icon: 'wallet', allowedRoles: ['superadmin', 'admin'] },
   { key: 'services', label: 'Cultes / Services', to: '/services', icon: 'church', allowedRoles: ['superadmin', 'admin', 'department_manager', 'department_member'] },
   { key: 'events', label: 'Evenements', to: '/events', icon: 'calendar-days', allowedRoles: ['superadmin', 'admin', 'department_manager', 'department_member'] },
-  { key: 'reports', label: 'Rapports', to: '/reports', icon: 'bar-chart-3', allowedRoles: ['superadmin', 'admin', 'department_manager'] },
+  { key: 'teaching-programs', label: 'Programme des enseignements', to: '/teaching-programs', icon: 'book-open', allowedRoles: ['superadmin', 'admin', 'department_manager', 'department_member'] },
+  { key: 'reports', label: 'Rapports', to: '/reports', icon: 'bar-chart-3', allowedRoles: ['superadmin', 'admin', 'department_manager', 'department_member'] },
+  { key: 'annual-themes', label: 'Themes annuels', to: '/annual-themes', icon: 'calendar-range', allowedRoles: ['superadmin'] },
   { key: 'settings', label: 'Parametres', to: '/settings', icon: 'settings', allowedRoles: ['superadmin', 'admin', 'department_manager'] },
   { key: 'profile', label: 'Profil', to: '/profile', icon: 'user-circle-2', allowedRoles: ['superadmin', 'admin', 'department_manager', 'department_member'] },
 ];

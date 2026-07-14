@@ -2,7 +2,7 @@ import { AppButton, AppInput, FormFieldWrapper } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { loginSchema } from '@/features/auth/schemas/loginSchema';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, Eye, EyeOff, Lock, Mail, Fingerprint, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, Lock, Mail, Fingerprint, ShieldCheck, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
@@ -15,6 +15,7 @@ export function LoginForm() {
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
+  const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
 
   const {
     register,
@@ -39,8 +40,11 @@ export function LoginForm() {
   };
 
   const handlePasskeyLogin = async () => {
+    if (isPasskeyLoading) return;
+
     clearError();
     setPasskeyError(null);
+    setIsPasskeyLoading(true);
     try {
       const credentials = await loginWithPasskey();
       const result = await login(credentials.email, credentials.authData);
@@ -49,6 +53,8 @@ export function LoginForm() {
       }
     } catch (err: any) {
       setPasskeyError(err.message || "La connexion par Passkey a échoué.");
+    } finally {
+      setIsPasskeyLoading(false);
     }
   };
 
@@ -125,10 +131,11 @@ export function LoginForm() {
       <button
         type="button"
         onClick={handlePasskeyLogin}
-        className="h-12 w-full rounded-xl border border-teal-600 bg-white hover:bg-teal-50/30 text-teal-600 font-bold text-sm flex items-center justify-center gap-2 cursor-pointer transition-colors"
+        disabled={isPasskeyLoading || isSubmitting}
+        className="h-12 w-full rounded-xl border border-teal-600 bg-white hover:bg-teal-50/30 text-teal-600 font-bold text-sm flex items-center justify-center gap-2 cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-70"
       >
-        <Fingerprint className="size-5" />
-        Continuer avec Passkey
+        {isPasskeyLoading ? <Loader2 className="size-5 animate-spin" /> : <Fingerprint className="size-5" />}
+        {isPasskeyLoading ? 'Connexion...' : 'Continuer avec Passkey'}
       </button>
 
       <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400 mt-2.5 font-medium">

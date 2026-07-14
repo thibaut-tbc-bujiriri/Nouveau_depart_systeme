@@ -1,4 +1,4 @@
-import { forwardRef, type ReactNode } from 'react';
+﻿import { forwardRef, type ReactNode } from 'react';
 import { ReportFooter } from './ReportFooter';
 import { ReportHeader } from './ReportHeader';
 import type { Profile } from '@/types';
@@ -10,12 +10,15 @@ interface PrintableReportProps {
   departmentName?: string;
   period?: string;
   currentUser: Profile;
+  officeName?: string;
+  annualTheme?: string;
+  monthYear?: string;
+  subtheme?: string;
   children: ReactNode;
 }
 
-/** Official HTML document sent to the browser print engine. */
 export const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(function PrintableReport(
-  { title, scope, branchName, departmentName, period, currentUser, children },
+  { title, scope, branchName, departmentName, period, currentUser, officeName, annualTheme, monthYear, subtheme, children },
   ref,
 ) {
   return (
@@ -27,6 +30,10 @@ export const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
         departmentName={departmentName}
         period={period}
         currentUser={currentUser}
+        officeName={officeName}
+        annualTheme={annualTheme}
+        monthYear={monthYear}
+        subtheme={subtheme}
       />
       <div className="report-document-body">{children}</div>
       <ReportFooter />

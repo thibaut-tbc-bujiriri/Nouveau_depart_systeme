@@ -253,3 +253,173 @@ body {
     print-color-adjust: exact !important;
   }
 }
+
+/* Programme des enseignements: official A4 output */
+.teaching-program-report {
+  max-width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 12mm 13mm 18mm;
+  background: #ffffff;
+  color: #2f3548;
+  font-family: Georgia, 'Times New Roman', serif;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+}
+
+.teaching-program-header {
+  display: grid;
+  grid-template-columns: 92px 1fr 92px;
+  align-items: start;
+  gap: 18px;
+}
+
+.teaching-program-logo {
+  width: 86px;
+  height: 86px;
+  object-fit: contain;
+}
+
+.teaching-program-heading {
+  text-align: center;
+  font-style: italic;
+  font-weight: 700;
+  line-height: 1.18;
+  color: #35405d;
+  font-size: 15px;
+}
+
+.teaching-program-rule {
+  height: 3px;
+  margin: 8px auto 7px;
+  width: 78%;
+  background: #252c7d;
+}
+
+.teaching-program-title-block {
+  text-align: center;
+  color: #38405d;
+}
+
+.teaching-program-office {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.teaching-program-theme {
+  margin: 18px 0 0;
+  font-size: 20px;
+  font-style: italic;
+  font-weight: 900;
+}
+
+.teaching-program-month {
+  margin: 18px 0 0;
+  font-size: 19px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.teaching-program-title-block h1 {
+  margin: 18px 0 4px;
+  font-size: 16px;
+  text-decoration: underline;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.teaching-program-subtheme {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-style: italic;
+}
+
+.teaching-program-subtheme span {
+  font-weight: 400;
+}
+
+.teaching-program-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 13.5px;
+  color: #38405d;
+}
+
+.teaching-program-table th,
+.teaching-program-table td {
+  border: 1px solid #9aa3b6;
+  padding: 2px 5px;
+  line-height: 1.14;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.teaching-program-table th {
+  background: #ffffff !important;
+  color: #343a52 !important;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.teaching-program-table th:nth-child(1) { width: 14%; }
+.teaching-program-table th:nth-child(2) { width: 9%; }
+.teaching-program-table th:nth-child(3) { width: 35%; }
+.teaching-program-table th:nth-child(4) { width: 22%; }
+.teaching-program-table th:nth-child(5) { width: 20%; }
+
+.teaching-program-week-row td {
+  font-size: 15px;
+  font-weight: 900;
+  background: #f8fafc;
+}
+
+.teaching-program-note {
+  font-weight: 400;
+}
+
+.teaching-program-empty {
+  padding: 18px !important;
+  color: #64748b;
+  font-style: italic;
+}
+
+.teaching-program-signature {
+  margin-top: 24px;
+  margin-left: 34mm;
+  width: 70mm;
+  color: #38405d;
+  font-size: 14px;
+}
+
+.teaching-program-sign-name {
+  margin: 0;
+  font-weight: 900;
+}
+
+.teaching-program-signature p:not(.teaching-program-sign-name) {
+  margin: 2px 0 22px;
+}
+
+.teaching-program-sign-line {
+  width: 64mm;
+  height: 22mm;
+  border-bottom: 2px solid #2d4c8b;
+  transform: rotate(-6deg);
+}
+
+@media print {
+  .teaching-program-report {
+    width: 190mm !important;
+    min-height: auto !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .teaching-program-table th {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border-color: #626b7f !important;
+  }
+}

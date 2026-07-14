@@ -37,6 +37,8 @@ const translations: Record<Language, Record<string, string>> = {
     'sidebar.logout': 'Déconnexion',
     'sidebar.management': 'Gestion & Système',
     'sidebar.services': 'Cultes / Services',
+    'sidebar.teaching-programs': 'Programme des enseignements',
+    'sidebar.annual-themes': 'Thèmes annuels',
     'sidebar.events': 'Événements',
     'sidebar.need_help': "Besoin d'aide ?",
     'sidebar.contact_support': 'Contactez le support',
@@ -132,6 +134,8 @@ const translations: Record<Language, Record<string, string>> = {
     'sidebar.management': 'Management & System',
     'sidebar.services': 'Services',
     'sidebar.events': 'Events',
+    'sidebar.teaching-programs': 'Teaching program',
+    'sidebar.annual-themes': 'Annual themes',
     'sidebar.need_help': 'Need help?',
     'sidebar.contact_support': 'Contact support',
 

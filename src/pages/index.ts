@@ -16,3 +16,6 @@ export * from './SettingsPage';
 export * from './UsersPage';
 
 export * from './CardScannerPage';
+
+export * from './AnnualThemesPage';
+export * from './TeachingProgramsPage';

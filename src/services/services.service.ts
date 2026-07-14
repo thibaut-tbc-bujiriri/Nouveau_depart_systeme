@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabaseClient';
+﻿import { supabase } from '@/lib/supabaseClient';
 import { createNotification } from '@/services/notificationsService';
 
 export interface ServiceUpsertInput {
@@ -26,22 +26,16 @@ let serviceColumnMapPromise: Promise<ServiceColumnMap> | null = null;
 async function firstSupportedColumn(candidates: string[]): Promise<string> {
   for (const column of candidates) {
     const probe = await supabase.from('services').select(column).limit(1);
-    if (!probe.error) {
-      return column;
-    }
+    if (!probe.error) return column;
   }
-
   throw new Error(`Aucune colonne supportee trouvee parmi: ${candidates.join(', ')}`);
 }
 
 async function firstSupportedOptionalColumn(candidates: string[]): Promise<string | null> {
   for (const column of candidates) {
     const probe = await supabase.from('services').select(column).limit(1);
-    if (!probe.error) {
-      return column;
-    }
+    if (!probe.error) return column;
   }
-
   return null;
 }
 
@@ -52,58 +46,44 @@ async function getServiceColumnMap(): Promise<ServiceColumnMap> {
       firstSupportedColumn(['start_time', 'startTime']),
       firstSupportedColumn(['end_time', 'endTime']),
       firstSupportedColumn(['speaker', 'preacher']),
-      firstSupportedOptionalColumn([
-        'actual_attendance',
-        'expected_attendance',
-        'participants_count',
-        'attendance',
-        'participants',
-        'attendance_count',
-        'participant_count',
-        'frequentation',
-        'frequency',
-      ]),
+      firstSupportedOptionalColumn(['actual_attendance', 'expected_attendance', 'participants_count', 'attendance', 'participants', 'attendance_count', 'participant_count', 'frequentation', 'frequency']),
       firstSupportedColumn(['service_type', 'type']),
-    ]).then(([date, startTime, endTime, speaker, attendance, serviceType]) => ({
-      date,
-      startTime,
-      endTime,
-      speaker,
-      attendance,
-      serviceType,
-    }));
+    ]).then(([date, startTime, endTime, speaker, attendance, serviceType]) => ({ date, startTime, endTime, speaker, attendance, serviceType }));
   }
-
   return serviceColumnMapPromise;
 }
 
 function normalizeDateInput(value: string) {
   const trimmed = value.trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return trimmed;
-  }
-
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
   const match = trimmed.match(/^:?\s*(\d{2})\/(\d{2})\/(\d{4})$/);
   if (match) {
     const [, dd, mm, yyyy] = match;
     return `${yyyy}-${mm}-${dd}`;
   }
-
   return trimmed;
+}
+
+function mapServiceRow(row: Record<string, any>, columnMap: ServiceColumnMap) {
+  return {
+    id: String(row.id),
+    branchId: String(row.branch_id ?? row.extension_id ?? ''),
+    title: String(row.title ?? row.name ?? 'Non renseigné'),
+    date: row[columnMap.date] ?? null,
+    startTime: row[columnMap.startTime] ?? null,
+    endTime: row[columnMap.endTime] ?? null,
+    preacher: row[columnMap.speaker] ?? 'Non renseigné',
+    speaker: row[columnMap.speaker] ?? 'Non renseigné',
+    attendance: columnMap.attendance ? Number(row[columnMap.attendance] ?? 0) : 0,
+    type: row[columnMap.serviceType] ?? 'special',
+  };
 }
 
 export async function getServices() {
   const columnMap = await getServiceColumnMap();
-  const { data, error } = await supabase
-    .from('services')
-    .select('*')
-    .order(columnMap.date, { ascending: false });
-
-  if (error || !data) {
-    throw error ?? new Error('Impossible de charger les services.');
-  }
-
-  return data;
+  const { data, error } = await supabase.from('services').select('*').order(columnMap.date, { ascending: false });
+  if (error || !data) throw error ?? new Error('Impossible de charger les services.');
+  return (data as Array<Record<string, any>>).map((row) => mapServiceRow(row, columnMap));
 }
 
 export async function createService(payload: ServiceUpsertInput): Promise<void> {
@@ -117,41 +97,22 @@ export async function createService(payload: ServiceUpsertInput): Promise<void> 
     [columnMap.speaker]: payload.preacher,
     [columnMap.serviceType]: payload.type,
   };
-  if (columnMap.attendance) {
-    insertPayload[columnMap.attendance] = payload.attendance;
-  }
+  if (columnMap.attendance) insertPayload[columnMap.attendance] = payload.attendance;
 
   const { error } = await supabase.from('services').insert(insertPayload);
-
-  if (error) {
-    throw new Error(error.message || "Impossible d'ajouter le programme.");
-  }
+  if (error) throw new Error(error.message || "Impossible d'ajouter le programme.");
 
   try {
     await createNotification({
-      title: "Nouveau service programmé",
+      title: 'Nouveau service programmé',
       message: `Le service "${payload.title}" a été programmé le ${payload.date} de ${payload.startTime} à ${payload.endTime}.`,
-      type: "service_created",
-      priority: "normal",
+      type: 'service_created',
+      priority: 'normal',
       targetExtensionId: payload.branchId,
-      link: "/services"
+      link: '/services',
     });
   } catch (err) {
-    console.error("Failed to create service_created notification:", err);
-  }
-
-  try {
-    const { createActivityLog } = await import('@/services/activityLogService');
-    await createActivityLog({
-      actionType: 'service_created',
-      module: 'services',
-      title: 'Planification d\'un culte',
-      description: `Le culte "${payload.title}" a été planifié pour le ${payload.date}.`,
-      status: 'success',
-      extensionId: payload.branchId
-    });
-  } catch (err) {
-    console.error("Log service creation error:", err);
+    console.error('Failed to create service_created notification:', err);
   }
 }
 
@@ -166,24 +127,13 @@ export async function updateService(serviceId: string, payload: ServiceUpsertInp
     [columnMap.speaker]: payload.preacher,
     [columnMap.serviceType]: payload.type,
   };
-  if (columnMap.attendance) {
-    updatePayload[columnMap.attendance] = payload.attendance;
-  }
+  if (columnMap.attendance) updatePayload[columnMap.attendance] = payload.attendance;
 
-  const { error } = await supabase
-    .from('services')
-    .update(updatePayload)
-    .eq('id', serviceId);
-
-  if (error) {
-    throw new Error(error.message || 'Impossible de modifier le programme.');
-  }
+  const { error } = await supabase.from('services').update(updatePayload).eq('id', serviceId);
+  if (error) throw new Error(error.message || 'Impossible de modifier le programme.');
 }
 
 export async function deleteService(serviceId: string): Promise<void> {
   const { error } = await supabase.from('services').delete().eq('id', serviceId);
-
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 }

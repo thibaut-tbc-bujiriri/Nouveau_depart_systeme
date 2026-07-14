@@ -17,6 +17,8 @@ import {
   ProfilePage,
   ReportsPage,
   ServicesPage,
+  AnnualThemesPage,
+  TeachingProgramsPage,
   SettingsPage,
   UsersPage,
 } from '@/pages';
@@ -38,12 +40,18 @@ export function AppRouter() {
           <Route path="/departments/:id" element={<DepartmentDetailsPage />} />
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/events" element={<EventsPage />} />
+          <Route element={<RoleGuard allowedRoles={['superadmin', 'admin', 'department_manager', 'department_member']} requiredPermission="teaching-programs:view" />}>
+            <Route path="/teaching-programs" element={<TeachingProgramsPage />} />
+          </Route>
           <Route path="/profile" element={<ProfilePage />} />          <Route element={<RoleGuard allowedRoles={['superadmin', 'admin']} />}>
             <Route path="/card-scanner" element={<CardScannerPage />} />
           </Route>
 
           <Route element={<RoleGuard allowedRoles={['superadmin', 'admin', 'department_manager']} />}>
             <Route path="/members" element={<MembersPage />} />
+          </Route>
+
+          <Route element={<RoleGuard allowedRoles={['superadmin', 'admin', 'department_manager', 'department_member']} requiredPermission="reports:view" />}>
             <Route path="/reports" element={<ReportsPage />} />
           </Route>
 
@@ -57,6 +65,10 @@ export function AppRouter() {
 
           <Route element={<RoleGuard allowedRoles={['superadmin', 'admin']} />}>
             <Route path="/finances" element={<FinancesPage />} />
+          </Route>
+
+          <Route element={<RoleGuard allowedRoles={['superadmin']} requiredPermission="annual-themes:view" />}>
+            <Route path="/annual-themes" element={<AnnualThemesPage />} />
           </Route>
 
           <Route element={<RoleGuard allowedRoles={['superadmin', 'admin', 'department_manager']} />}>

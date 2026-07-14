@@ -65,14 +65,14 @@ const menuCategories = [
     label: 'ACTIVITÉS',
     type: 'group' as const,
     icon: Activity,
-    subKeys: ['services', 'events'],
+    subKeys: ['services', 'events', 'teaching-programs'],
   },
   {
     key: 'management',
     label: 'GESTION & SYSTÈME',
     type: 'group' as const,
     icon: Sliders,
-    subKeys: ['finances', 'reports', 'card-scanner', 'settings', 'profile'],
+    subKeys: ['finances', 'reports', 'card-scanner', 'annual-themes', 'settings', 'profile'],
   },
 ];
 

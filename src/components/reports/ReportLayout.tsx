@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+﻿import React, { useCallback, useRef } from 'react';
 import { ReportActions } from './ReportActions';
 import { PrintableReport } from './PrintableReport';
 import type { Profile } from '@/types';
@@ -10,6 +10,10 @@ interface ReportLayoutProps {
   departmentName?: string;
   period?: string;
   currentUser: Profile;
+  officeName?: string;
+  annualTheme?: string;
+  monthYear?: string;
+  subtheme?: string;
   onExportCSV?: () => void;
   isLoading?: boolean;
   children: React.ReactNode;
@@ -22,6 +26,10 @@ export function ReportLayout({
   departmentName,
   period,
   currentUser,
+  officeName,
+  annualTheme,
+  monthYear,
+  subtheme,
   onExportCSV,
   isLoading = false,
   children,
@@ -59,6 +67,10 @@ export function ReportLayout({
         departmentName={departmentName}
         period={period}
         currentUser={currentUser}
+        officeName={officeName}
+        annualTheme={annualTheme}
+        monthYear={monthYear}
+        subtheme={subtheme}
       >
         <div className="my-6 min-h-[200px]">{children}</div>
       </PrintableReport>

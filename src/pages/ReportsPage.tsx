@@ -6,7 +6,7 @@ import { useBranches } from '@/hooks/useBranches';
 import { useReportsData } from '@/hooks/useReportsData';
 import type { Report } from '@/types';
 import { hasModulePermission } from '@/lib/permissions';
-import { formatDate } from '@/utils/format';
+import { formatDate, parseSafeDate } from '@/utils/format';
 import { restrictReportsByRole } from '@/utils/permissions';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabaseClient';
 
 // Reporting elements
 import { ReportLayout, ReportTable, ReportFilters, ReportEmptyState } from '@/components/reports';
+import { TeachingProgramReport } from '@/components/reports/TeachingProgramReport';
 import { exportToCSV } from '@/services/exportService';
 import { resolveReportScope } from '@/services/reportsService';
 import { getBranches } from '@/services/branches.service';
@@ -25,6 +26,7 @@ import { getEvents } from '@/services/events.service';
 import { getFinanceRecords } from '@/services/finance.service';
 import { getNotificationsForCurrentUser } from '@/services/notificationsService';
 import { getDailyVerseHistory } from '@/services/dailyVerseService';
+import { getTeachingPrograms, type TeachingProgram } from '@/services/teachingPrograms.service';
 
 import { 
   Building2, 
@@ -82,6 +84,7 @@ export function ReportsPage() {
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [periodText, setPeriodText] = useState<string>('Toutes les périodes');
   const [searchVal, setSearchVal] = useState<string>('');
+  const [selectedTeachingProgramId, setSelectedTeachingProgramId] = useState<string>('');
 
   // Resources state
   const [branchesData, setBranchesData] = useState<any[]>([]);
@@ -93,6 +96,7 @@ export function ReportsPage() {
   const [financesData, setFinancesData] = useState<any[]>([]);
   const [notificationsData, setNotificationsData] = useState<any[]>([]);
   const [versesData, setVersesData] = useState<any[]>([]);
+  const [teachingProgramsData, setTeachingProgramsData] = useState<TeachingProgram[]>([]);
   const [settingsData, setSettingsData] = useState<any | null>(null);
   const [logsData, setLogsData] = useState<any[]>([]);
   const [isReportDataLoading, setIsReportDataLoading] = useState(false);
@@ -170,6 +174,7 @@ export function ReportsPage() {
         fRes,
         nRes,
         vRes,
+        tpRes,
         settingsRes
       ] = await Promise.all([
         getBranches().catch(() => []),
@@ -181,6 +186,7 @@ export function ReportsPage() {
         getFinanceRecords().catch(() => []),
         getNotificationsForCurrentUser(user).catch(() => []),
         getDailyVerseHistory().then(v => v, () => []),
+        getTeachingPrograms().catch(() => []),
         Promise.resolve(supabase.from('app_settings').select('*').maybeSingle()).then(res => res.data).catch(() => null)
       ]);
 
@@ -193,6 +199,8 @@ export function ReportsPage() {
       setFinancesData(fRes);
       setNotificationsData(nRes);
       setVersesData(vRes);
+      setTeachingProgramsData(tpRes);
+      if (!selectedTeachingProgramId && tpRes[0]) setSelectedTeachingProgramId(tpRes[0].id);
       setSettingsData(settingsRes);
 
       if (activeReport === 'sys_logs' || activeReport === 'profile_activities' || activeReport === 'sys_general') {
@@ -282,7 +290,7 @@ export function ReportsPage() {
         
         if (activeReport === 'member_new') {
           const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-          if (new Date(m.joinedAt) < thirtyDaysAgo) return false;
+          if ((parseSafeDate(m.joinedAt)?.getTime() ?? 0) < thirtyDaysAgo.getTime()) return false;
         }
 
         if (searchLower && !`${m.firstName} ${m.lastName}`.toLowerCase().includes(searchLower)) return false;
@@ -317,7 +325,7 @@ export function ReportsPage() {
         if (selectedBranchId && s.branchId !== selectedBranchId) return false;
 
         if (activeReport === 'service_upcoming') {
-          if (new Date(s.date) < new Date()) return false;
+          if ((parseSafeDate(s.date)?.getTime() ?? 0) < Date.now()) return false;
         }
 
         if (searchLower && !s.title.toLowerCase().includes(searchLower)) return false;
@@ -335,7 +343,7 @@ export function ReportsPage() {
         if (selectedDeptId && e.organizerDepartmentId !== selectedDeptId) return false;
 
         if (activeReport === 'event_upcoming') {
-          if (new Date(e.date) < new Date()) return false;
+          if ((parseSafeDate(e.date)?.getTime() ?? 0) < Date.now()) return false;
         }
 
         if (searchLower && !e.title.toLowerCase().includes(searchLower)) return false;
@@ -396,6 +404,15 @@ export function ReportsPage() {
       });
     }
 
+    if (activeReport === 'teaching_program') {
+      return teachingProgramsData.filter((program) => {
+        if (role !== 'superadmin' && program.extensionId !== user.branchId) return false;
+        if (selectedBranchId && program.extensionId !== selectedBranchId) return false;
+        if (selectedTeachingProgramId && program.id !== selectedTeachingProgramId) return false;
+        return true;
+      });
+    }
+
     return [];
   };
 
@@ -403,8 +420,16 @@ export function ReportsPage() {
     const dataList = getFilteredReportData();
     const resolvedScope = resolveReportScope(user, selectedBranchId, selectedDeptId);
 
-    const bName = branchesData.find((b) => b.id === (resolvedScope.branchId || selectedBranchId))?.name;
+    const selectedTeachingProgram = activeReport === 'teaching_program' ? (dataList[0] as TeachingProgram | undefined) : undefined;
+    const bName = selectedTeachingProgram?.branch?.name || branchesData.find((b) => b.id === (resolvedScope.branchId || selectedBranchId))?.name;
     const dName = deptsData.find((d) => d.id === (resolvedScope.departmentId || selectedDeptId))?.name;
+    const teachingMonthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+    const headerMeta = selectedTeachingProgram ? {
+      officeName: selectedTeachingProgram.officeName,
+      annualTheme: selectedTeachingProgram.annualTheme ? String(selectedTeachingProgram.year) + ', ' + selectedTeachingProgram.annualTheme.title : undefined,
+      monthYear: String(teachingMonthNames[selectedTeachingProgram.month - 1] ?? selectedTeachingProgram.month) + ' ' + String(selectedTeachingProgram.year),
+      subtheme: selectedTeachingProgram.subtheme,
+    } : {};
 
     const exportCSVHandler = () => {
       let headers: string[] = [];
@@ -435,15 +460,15 @@ export function ReportsPage() {
           `${m.firstName} ${m.lastName}`,
           m.gender === 'male' ? 'Homme' : 'Femme',
           m.phone,
-          m.email || '-',
+          m.email || 'Non renseigné',
           m.status === 'active' ? 'Actif' : 'Inactif',
-          new Date(m.joinedAt).toLocaleDateString('fr-FR')
+          formatDate(m.joinedAt)
         ]);
       } else if (activeReport.startsWith('dept_')) {
         headers = ["Département", "Extension", "Responsable", "Budget"];
         rows = dataList.map((d) => [
           d.name,
-          branchesData.find(b => b.id === d.branchId)?.name || 'N/A',
+          branchesData.find(b => b.id === d.branchId)?.name || 'Non renseigné',
           usersData.find(u => u.id === d.managerProfileId)?.fullName || 'Aucun',
           d.monthlyBudget ? `${d.monthlyBudget} USD` : '-'
         ]);
@@ -451,24 +476,24 @@ export function ReportsPage() {
         headers = ["Titre", "Date", "Heure début", "Heure fin", "Extension"];
         rows = dataList.map((s) => [
           s.title,
-          new Date(s.date).toLocaleDateString('fr-FR'),
-          s.startTime,
-          s.endTime,
-          branchesData.find(b => b.id === s.branchId)?.name || 'N/A'
+          formatDate(s.date),
+          s.startTime || 'Non renseigné',
+          s.endTime || 'Non renseigné',
+          branchesData.find(b => b.id === s.branchId)?.name || 'Non renseigné'
         ]);
       } else if (activeReport.startsWith('event_')) {
         headers = ["Événement", "Date", "Lieu", "Extension", "Département"];
         rows = dataList.map((e) => [
           e.title,
-          new Date(e.date).toLocaleDateString('fr-FR'),
-          e.location || '-',
-          branchesData.find(b => b.id === e.branchId)?.name || 'N/A',
+          formatDate(e.date),
+          e.location || 'Non renseigné',
+          branchesData.find(b => b.id === e.branchId)?.name || 'Non renseigné',
           deptsData.find(d => d.id === e.organizerDepartmentId)?.name || 'Tous'
         ]);
       } else if (activeReport.startsWith('finance_')) {
         headers = ["Date", "Type", "Catégorie", "Montant", "Description"];
         rows = dataList.map((f) => [
-          new Date(f.recordedAt).toLocaleDateString('fr-FR'),
+          formatDate(f.recordedAt),
           f.type === 'income' ? 'Recette' : 'Dépense',
           f.category,
           `${f.amount} USD`,
@@ -477,7 +502,7 @@ export function ReportsPage() {
       } else if (activeReport === 'sys_logs') {
         headers = ["Date", "Auteur", "Action", "Module", "Description", "Statut"];
         rows = dataList.map((l) => [
-          new Date(l.createdAt).toLocaleDateString('fr-FR'),
+          formatDate(l.createdAt),
           l.userName || 'Système',
           l.title,
           l.module,
@@ -487,7 +512,7 @@ export function ReportsPage() {
       } else if (activeReport === 'profile_activities') {
         headers = ["Date", "Action", "Module", "Description", "Statut"];
         rows = dataList.map((l) => [
-          new Date(l.createdAt).toLocaleDateString('fr-FR'),
+          formatDate(l.createdAt),
           l.title,
           l.module,
           l.description,
@@ -496,7 +521,7 @@ export function ReportsPage() {
       } else if (activeReport === 'spiritual_verses') {
         headers = ["Date publication", "Référence", "Texte du verset", "Statut"];
         rows = dataList.map((v) => [
-          new Date(v.publishedAt).toLocaleDateString('fr-FR'),
+          formatDate(v.publishedAt),
           v.verseReference,
           v.verseText,
           v.status
@@ -511,11 +536,12 @@ export function ReportsPage() {
       branchName: bName,
       departmentName: dName,
       exportCSV: exportCSVHandler,
+      headerMeta,
       dataList
     };
   };
 
-  const { scope, branchName, departmentName, exportCSV, dataList } = getReportRenderDetails();
+  const { scope, branchName, departmentName, exportCSV, headerMeta, dataList } = getReportRenderDetails();
 
   // Archive functions
   const openCreateModal = () => {
@@ -831,6 +857,14 @@ export function ReportsPage() {
                 >
                   <BookOpen className="size-3.5" /> Historique des versets
                 </button>
+                <button
+                  onClick={() => setActiveReport('teaching_program')}
+                  className={`w-full text-left text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-2 ${
+                    activeReport === 'teaching_program' ? 'bg-teal-50 text-teal-800' : 'text-slate-650 hover:bg-slate-50'
+                  }`}
+                >
+                  <BookOpen className="size-3.5" /> Programme des enseignements
+                </button>
               </div>
             </div>
 
@@ -887,6 +921,21 @@ export function ReportsPage() {
                       options={filterDeptOptions}
                       disabled={user.role === 'department_manager'}
                     />
+                  </FormFieldWrapper>
+                )}
+
+                {activeReport === 'teaching_program' && (
+                  <FormFieldWrapper label="Choisir le programme">
+                    <AppSelect value={selectedTeachingProgramId} onChange={(e) => setSelectedTeachingProgramId(e.target.value)}>
+                      <option value="">Dernier programme disponible</option>
+                      {teachingProgramsData
+                        .filter((program) => user.role === 'superadmin' || program.extensionId === user.branchId)
+                        .map((program) => (
+                          <option key={program.id} value={program.id}>
+                            {program.branch?.name || 'Extension'} - {program.month}/{program.year} - {program.subtheme}
+                          </option>
+                        ))}
+                    </AppSelect>
                   </FormFieldWrapper>
                 )}
 
@@ -951,6 +1000,7 @@ export function ReportsPage() {
                   activeReport === 'sys_notifications' ? 'Registre Général des Notifications' :
                   activeReport === 'sys_settings' ? 'Fiche des Paramètres Généraux' :
                   activeReport === 'spiritual_verses' ? 'Historique des Versets du Jour' :
+                  activeReport === 'teaching_program' ? 'Programme des enseignements' :
                   activeReport === 'profile_info' ? 'Fiche de Profil Utilisateur' :
                   activeReport === 'profile_activities' ? 'Historique d\'Activités Personnel' :
                   'Rapport'
@@ -960,9 +1010,15 @@ export function ReportsPage() {
                 departmentName={departmentName}
                 period={periodText}
                 currentUser={user}
-                onExportCSV={activeReport !== 'profile_info' && activeReport !== 'sys_general' && activeReport !== 'sys_settings' ? exportCSV : undefined}
+                officeName={headerMeta.officeName}
+                annualTheme={headerMeta.annualTheme}
+                monthYear={headerMeta.monthYear}
+                subtheme={headerMeta.subtheme}
+                onExportCSV={activeReport !== 'profile_info' && activeReport !== 'sys_general' && activeReport !== 'sys_settings' && activeReport !== 'teaching_program' ? exportCSV : undefined}
               >
-                {activeReport === 'sys_general' ? (
+                {activeReport === 'teaching_program' ? (
+                  <TeachingProgramReport program={(dataList[0] as TeachingProgram | undefined) ?? null} />
+                ) : activeReport === 'sys_general' ? (
                   <div className="space-y-6">
                     <div className="grid gap-4 md:grid-cols-3">
                       <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
@@ -1069,12 +1125,12 @@ export function ReportsPage() {
                     rows={dataList.map((m) => [
                       <span className="font-bold text-slate-850">{m.firstName} {m.lastName}</span>,
                       m.gender === 'male' ? 'Homme' : 'Femme',
-                      m.phone || '-',
-                      <span className="font-mono">{m.email || '-'}</span>,
+                      m.phone || 'Non renseigné',
+                      <span className="font-mono">{m.email || 'Non renseigné'}</span>,
                       <span className={`font-semibold ${m.status === 'active' ? 'text-emerald-700' : 'text-slate-400'}`}>
                         {m.status === 'active' ? 'Actif' : 'Inactif'}
                       </span>,
-                      new Date(m.joinedAt).toLocaleDateString('fr-FR')
+                      formatDate(m.joinedAt)
                     ])}
                   />
                 ) : activeReport.startsWith('dept_') ? (
@@ -1082,7 +1138,7 @@ export function ReportsPage() {
                     headers={["Département", "Code / Extension", "Responsable", "Budget"]}
                     rows={dataList.map((d) => [
                       <span className="font-bold text-slate-850">{d.name}</span>,
-                      branchesData.find(b => b.id === d.branchId)?.name || 'N/A',
+                      branchesData.find(b => b.id === d.branchId)?.name || 'Non renseigné',
                       usersData.find(u => u.id === d.managerProfileId)?.fullName || 'Aucun',
                       <span className="font-mono">{d.monthlyBudget ? `${d.monthlyBudget} USD` : '-'}</span>
                     ])}
@@ -1092,10 +1148,10 @@ export function ReportsPage() {
                     headers={["Intitulé du culte", "Date", "Heure début", "Heure fin", "Extension"]}
                     rows={dataList.map((s) => [
                       <span className="font-bold text-slate-850">{s.title}</span>,
-                      new Date(s.date).toLocaleDateString('fr-FR'),
-                      s.startTime,
-                      s.endTime,
-                      branchesData.find(b => b.id === s.branchId)?.name || 'N/A'
+                      formatDate(s.date),
+                      s.startTime || 'Non renseigné',
+                      s.endTime || 'Non renseigné',
+                      branchesData.find(b => b.id === s.branchId)?.name || 'Non renseigné'
                     ])}
                   />
                 ) : activeReport.startsWith('event_') ? (
@@ -1103,9 +1159,9 @@ export function ReportsPage() {
                     headers={["Événement", "Date", "Lieu / Salle", "Extension", "Département Organisateur"]}
                     rows={dataList.map((e) => [
                       <span className="font-bold text-slate-850">{e.title}</span>,
-                      new Date(e.date).toLocaleDateString('fr-FR'),
-                      e.location || '-',
-                      branchesData.find(b => b.id === e.branchId)?.name || 'N/A',
+                      formatDate(e.date),
+                      e.location || 'Non renseigné',
+                      branchesData.find(b => b.id === e.branchId)?.name || 'Non renseigné',
                       deptsData.find(d => d.id === e.organizerDepartmentId)?.name || 'Tous'
                     ])}
                   />
@@ -1123,7 +1179,7 @@ export function ReportsPage() {
                     <ReportTable
                       headers={["Date de valeur", "Type d'opération", "Catégorie", "Montant", "Description"]}
                       rows={dataList.map((f) => [
-                        new Date(f.recordedAt).toLocaleDateString('fr-FR'),
+                        formatDate(f.recordedAt),
                         <span className={`font-semibold ${f.type === 'income' ? 'text-emerald-700' : 'text-rose-600'}`}>
                           {f.type === 'income' ? 'Recette' : 'Dépense'}
                         </span>,
@@ -1137,7 +1193,7 @@ export function ReportsPage() {
                   <ReportTable
                     headers={["Date", "Auteur", "Action", "Module", "Description", "Statut"]}
                     rows={dataList.map((l) => [
-                      new Date(l.createdAt).toLocaleDateString('fr-FR'),
+                      formatDate(l.createdAt),
                       l.userName || 'Système',
                       <span className="font-bold">{l.title}</span>,
                       l.module,
@@ -1151,7 +1207,7 @@ export function ReportsPage() {
                   <ReportTable
                     headers={["Date de réception", "Notification", "Type", "Contenu", "Statut"]}
                     rows={dataList.map((n) => [
-                      new Date(n.createdAt).toLocaleDateString('fr-FR'),
+                      formatDate(n.createdAt),
                       <span className="font-bold">{n.title}</span>,
                       n.type,
                       n.message,
@@ -1164,7 +1220,7 @@ export function ReportsPage() {
                   <ReportTable
                     headers={["Date de publication", "Référence", "Texte du verset", "Message inspirant", "Statut"]}
                     rows={dataList.map((v) => [
-                      new Date(v.publishedAt).toLocaleDateString('fr-FR'),
+                      formatDate(v.publishedAt),
                       <span className="font-bold text-slate-800">{v.verseReference}</span>,
                       <span className="italic">« {v.verseText} »</span>,
                       v.inspirationalMessage || '-',
@@ -1177,7 +1233,7 @@ export function ReportsPage() {
                   <ReportTable
                     headers={["Date", "Action", "Module", "Description", "Statut"]}
                     rows={dataList.map((l) => [
-                      new Date(l.createdAt).toLocaleDateString('fr-FR'),
+                      formatDate(l.createdAt),
                       <span className="font-bold">{l.title}</span>,
                       l.module,
                       l.description,

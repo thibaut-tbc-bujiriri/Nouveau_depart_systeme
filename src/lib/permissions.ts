@@ -22,6 +22,8 @@ export type Permission =
   | 'finances:view'
   | 'services:view'
   | 'events:view'
+  | 'teaching-programs:view'
+  | 'annual-themes:view'
   | 'reports:view'
   | 'settings:view'
   | 'profile:view'
@@ -48,6 +50,8 @@ export const defaultRolePermissions: Record<Exclude<Role, 'superadmin'>, Record<
     finances: { view: true, create: true, update: true, delete: true },
     services: { view: true, create: true, update: true, delete: true },
     events: { view: true, create: true, update: true, delete: true },
+    'teaching-programs': { view: true, create: true, update: true, delete: true },
+    'annual-themes': { view: false, create: false, update: false, delete: false },
     reports: { view: true, create: true, update: true, delete: true },
     settings: { view: true, create: true, update: true, delete: false },
     profile: { view: true, create: false, update: true, delete: false },
@@ -61,6 +65,8 @@ export const defaultRolePermissions: Record<Exclude<Role, 'superadmin'>, Record<
     finances: { view: false, create: false, update: false, delete: false },
     services: { view: true, create: true, update: true, delete: true },
     events: { view: true, create: true, update: true, delete: true },
+    'teaching-programs': { view: true, create: true, update: true, delete: true },
+    'annual-themes': { view: false, create: false, update: false, delete: false },
     reports: { view: true, create: true, update: true, delete: false },
     settings: { view: true, create: false, update: true, delete: false },
     profile: { view: true, create: false, update: true, delete: false },
@@ -74,6 +80,8 @@ export const defaultRolePermissions: Record<Exclude<Role, 'superadmin'>, Record<
     finances: { view: false, create: false, update: false, delete: false },
     services: { view: false, create: false, update: false, delete: false },
     events: { view: false, create: false, update: false, delete: false },
+    'teaching-programs': { view: true, create: false, update: false, delete: false },
+    'annual-themes': { view: false, create: false, update: false, delete: false },
     reports: { view: false, create: false, update: false, delete: false },
     settings: { view: false, create: false, update: false, delete: false },
     profile: { view: true, create: false, update: true, delete: false },
@@ -90,6 +98,8 @@ export const maxRolePermissions: Record<Exclude<Role, 'superadmin'>, Record<Modu
     finances: { view: true, create: true, update: true, delete: false },
     services: { view: true, create: true, update: true, delete: true },
     events: { view: true, create: true, update: true, delete: true },
+    'teaching-programs': { view: true, create: true, update: true, delete: true },
+    'annual-themes': { view: false, create: false, update: false, delete: false },
     reports: { view: true, create: true, update: true, delete: false },
     settings: { view: true, create: false, update: false, delete: false },
     profile: { view: true, create: false, update: true, delete: false },
@@ -103,6 +113,8 @@ export const maxRolePermissions: Record<Exclude<Role, 'superadmin'>, Record<Modu
     finances: { view: false, create: false, update: false, delete: false },
     services: { view: true, create: false, update: true, delete: false },
     events: { view: true, create: true, update: true, delete: false },
+    'teaching-programs': { view: true, create: true, update: true, delete: false },
+    'annual-themes': { view: false, create: false, update: false, delete: false },
     reports: { view: true, create: true, update: true, delete: false },
     settings: { view: true, create: false, update: true, delete: false },
     profile: { view: true, create: false, update: true, delete: false },
@@ -116,6 +128,8 @@ export const maxRolePermissions: Record<Exclude<Role, 'superadmin'>, Record<Modu
     finances: { view: false, create: false, update: false, delete: false },
     services: { view: true, create: false, update: false, delete: false },
     events: { view: true, create: false, update: false, delete: false },
+    'teaching-programs': { view: true, create: false, update: false, delete: false },
+    'annual-themes': { view: false, create: false, update: false, delete: false },
     reports: { view: false, create: false, update: false, delete: false },
     settings: { view: false, create: false, update: false, delete: false },
     profile: { view: true, create: false, update: true, delete: false },
@@ -224,7 +238,7 @@ export const filterNavItemsForRole = (items: NavItem[], role: Role) => {
 
   // Contract asked by product: department_member sidebar shows only Dashboard + Departements.
   if (role === 'department_member') {
-    return visibleItems.filter((item) => item.key === 'dashboard' || item.key === 'departments');
+    return visibleItems.filter((item) => ['dashboard', 'departments', 'teaching-programs', 'reports'].includes(item.key));
   }
 
   return visibleItems;
@@ -238,6 +252,8 @@ const navItemPermissionMap: Record<NavItem['key'], Permission> = {
   finances: 'finances:view',
   services: 'services:view',
   events: 'events:view',
+  'teaching-programs': 'teaching-programs:view',
+  'annual-themes': 'annual-themes:view',
   reports: 'reports:view',
   settings: 'settings:view',
   profile: 'profile:view',
