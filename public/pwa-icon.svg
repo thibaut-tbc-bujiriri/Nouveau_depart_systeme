@@ -1,0 +1,8 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">CECND</title>
+  <rect width="512" height="512" rx="112" fill="#0f172a"/>
+  <circle cx="256" cy="214" r="118" fill="#38bdf8"/>
+  <path fill="#ffffff" d="M160 334c22-54 58-82 96-82s74 28 96 82c-22 29-55 46-96 46s-74-17-96-46Z"/>
+  <path fill="#0f172a" d="M216 178h80v44h-80z"/>
+  <path fill="#0f172a" d="M234 150h44v100h-44z"/>
+</svg>

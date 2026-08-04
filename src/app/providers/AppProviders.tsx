@@ -1,7 +1,8 @@
-import { onAuthStateChange } from '@/services/auth.service';
+﻿import { onAuthStateChange } from '@/services/auth.service';
 import { useEffect } from 'react';
 import { useAuthStore } from '@/app/store/authStore';
 import { AppRouter } from '@/app/router/AppRouter';
+import { PwaInstallPrompt } from '@/components/common/PwaInstallPrompt';
 import { BrowserRouter } from 'react-router-dom';
 import { PreferencesProvider } from '@/contexts/PreferencesContext';
 
@@ -30,8 +31,10 @@ export function AppProviders() {
     <PreferencesProvider>
       <BrowserRouter>
         <AppRouter />
+        <PwaInstallPrompt />
       </BrowserRouter>
     </PreferencesProvider>
   );
 }
+
 
