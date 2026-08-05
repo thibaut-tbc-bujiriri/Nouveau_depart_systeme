@@ -1,5 +1,5 @@
 import { DataTable, EmptyState, LoadingState, PageHeader, StatCard } from '@/components/common';
-import { AppButton, AppInput, AppSelect, FormFieldWrapper, AppCombobox } from '@/components/ui';
+import { ActionMenu, AppButton, AppInput, AppSelect, FormFieldWrapper, AppCombobox, useToast } from '@/components/ui';
 import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import { useBranches } from '@/hooks/useBranches';
@@ -32,6 +32,7 @@ const initialForm: FinanceFormState = {
 
 export function FinancesPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const { branches } = useBranches();
   const { departments } = useDepartments();
   const {
@@ -104,6 +105,7 @@ export function FinancesPage() {
 
   const handleSubmit = async () => {
     if (!form.branchId || form.amount <= 0) {
+      toast.error('Veuillez remplir les champs obligatoires.');
       return;
     }
 
@@ -122,6 +124,7 @@ export function FinancesPage() {
       : await createFinanceRecord(payload);
 
     if (ok) {
+      toast.success(editingId ? 'Modification r?ussie.' : 'Enregistrement r?ussi.');
       setIsModalOpen(false);
       setEditingId(null);
     }
@@ -134,6 +137,7 @@ export function FinancesPage() {
 
     const ok = await deleteFinanceRecord(deleteId);
     if (ok) {
+      toast.success('Suppression r?ussie.');
       setDeleteId(null);
     }
   };
@@ -187,14 +191,12 @@ export function FinancesPage() {
               key: 'actions',
               label: 'Actions',
               render: (record) => (
-                <div className="flex gap-2">
-                  <AppButton size="sm" variant="secondary" onClick={() => openEditModal(record)}>
-                    Modifier
-                  </AppButton>
-                  <AppButton size="sm" variant="danger" onClick={() => setDeleteId(record.id)}>
-                    Supprimer
-                  </AppButton>
-                </div>
+                <ActionMenu
+                  items={[
+                    { label: 'Modifier', onClick: () => openEditModal(record) },
+                    { label: 'Supprimer', variant: 'danger', onClick: () => setDeleteId(record.id) },
+                  ]}
+                />
               ),
             },
           ]}

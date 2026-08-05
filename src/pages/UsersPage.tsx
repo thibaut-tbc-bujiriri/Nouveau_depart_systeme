@@ -1,5 +1,5 @@
 import { Avatar, DataTable, EmptyState, LoadingState, PageHeader } from '@/components/common';
-import { AppButton, AppInput, AppSelect, SearchInput, AppCombobox } from '@/components/ui';
+import { ActionMenu, AppButton, AppInput, AppSelect, SearchInput, AppCombobox } from '@/components/ui';
 import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import { useUsersManagement } from '@/hooks/useUsersManagement';
@@ -23,7 +23,6 @@ import {
   Shield,
   Lock,
   Building2,
-  CreditCard,
   Briefcase,
   Mail,
   UserCheck,
@@ -533,12 +532,9 @@ export function UsersPage() {
               key: 'actions',
               label: 'Actions',
               render: (item) => (
-                <div className="flex items-center gap-2">
-                  {canUpdate && (
-                    <AppButton
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => {
+                <ActionMenu
+                  items={[
+                    canUpdate ? { label: 'Modifier', onClick: () => {
                         setPhotoFile(undefined);
                         setMemberDeptSearch("");
                         setShowEditPassword(false);
@@ -553,27 +549,11 @@ export function UsersPage() {
                           avatarUrl: item.avatarUrl,
                           status: item.status || 'active',
                         });
-                      }}
-                    >
-                      Modifier
-                    </AppButton>
-                  )}
-                  {user.role === 'superadmin' && (
-                    <AppButton size="sm" variant="secondary" onClick={() => setCardUser(item)}>
-                      <CreditCard className="size-4" /> Carte
-                    </AppButton>
-                  )}
-                  {canDelete && (
-                    <AppButton
-                      size="sm"
-                      variant="danger"
-                      disabled={item.id === user?.id}
-                      onClick={() => setDeleteUserId(item.id)}
-                    >
-                      Supprimer
-                    </AppButton>
-                  )}
-                </div>
+                      } } : null,
+                    user.role === 'superadmin' ? { label: 'Carte', onClick: () => setCardUser(item) } : null,
+                    canDelete && item.id !== user?.id ? { label: 'Supprimer', variant: 'danger', onClick: () => setDeleteUserId(item.id) } : null,
+                  ].filter(Boolean)}
+                />
               ),
             },
           ]}

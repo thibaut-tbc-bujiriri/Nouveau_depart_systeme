@@ -17,18 +17,30 @@ export function Modal({ isOpen, onClose, title, subtitle, className, children }:
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-2 sm:items-center sm:p-4">
-      <div className={cn('flex max-h-[calc(100dvh-1rem)] w-full max-w-xl flex-col overflow-hidden rounded-xl bg-white shadow-xl sm:max-h-[88vh]', className)}>
-        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3 sm:px-5 sm:py-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-2 sm:items-center sm:p-4">
+      <div
+        className={cn(
+          'flex max-h-[calc(100dvh-1rem)] w-full max-w-xl flex-col overflow-hidden rounded-[var(--radius-md)] bg-[var(--surface-container-lowest)] shadow-[var(--shadow-card)] sm:max-h-[88vh]',
+          className,
+        )}
+      >
+        <div className="flex min-h-[58px] items-center justify-between gap-3 border-b border-[var(--outline)] px-5 py-4">
           <div className="min-w-0">
-            <h3 className="break-words text-sm font-semibold text-slate-900 sm:text-base">{title}</h3>
-            {subtitle && <p className="text-xs text-slate-500 mt-0.5 font-normal">{subtitle}</p>}
+            <h3 className="break-words font-[var(--font-heading)] text-[15px] font-medium leading-5 text-[var(--on-surface)]">
+              {title}
+            </h3>
+            {subtitle ? <p className="mt-1 text-[var(--text-sm)] text-[var(--on-surface-variant)]">{subtitle}</p> : null}
           </div>
-          <button onClick={onClose} className="shrink-0 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700" aria-label="Fermer">
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid size-7 shrink-0 place-items-center rounded-[var(--radius-md)] bg-transparent text-[var(--on-surface-variant)] transition hover:bg-[var(--surface-container-low)] hover:text-[var(--on-surface)]"
+            aria-label="Fermer"
+          >
             <X className="size-4" />
           </button>
         </div>
-        <div className="overflow-y-auto p-4 sm:p-5">{children}</div>
+        <div className="overflow-y-auto px-5 py-4">{children}</div>
       </div>
     </div>
   );
@@ -53,7 +65,7 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Modal isOpen={isOpen} onClose={onCancel} title={title} className="max-w-md">
-      <p className="text-sm text-slate-600">{description}</p>
+      <p className="text-[var(--text-base)] text-[var(--on-surface-variant)]">{description}</p>
       <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <AppButton variant="secondary" onClick={onCancel}>
           Annuler
@@ -65,4 +77,3 @@ export function ConfirmDialog({
     </Modal>
   );
 }
-

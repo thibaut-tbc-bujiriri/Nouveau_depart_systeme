@@ -1,5 +1,5 @@
 import { Avatar, BranchBadge, DataTable, DepartmentBadge, EmptyState, LoadingState, PageHeader } from '@/components/common';
-import { AppButton, AppInput, AppSelect, FormFieldWrapper, PhotoUpload, SearchInput, AppCombobox } from '@/components/ui';
+import { ActionMenu, AppButton, AppInput, AppSelect, FormFieldWrapper, PhotoUpload, SearchInput, AppCombobox, useToast } from '@/components/ui';
 import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import { useBranches } from '@/hooks/useBranches';
@@ -38,6 +38,7 @@ const initialForm: MemberFormState = {
 
 export function MembersPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const { members, isLoading, isMutating, error, createMember, updateMember, deleteMember } = useMembers();
   const { branches } = useBranches();
   const { departments } = useDepartments();
@@ -126,11 +127,13 @@ export function MembersPage() {
 
   const handleSubmit = async () => {
     if (!form.firstName.trim() || !form.lastName.trim() || !form.branchId) {
+      toast.error('Veuillez remplir les champs obligatoires.');
       return;
     }
 
     const normalizedPhone = form.phone.replace(/\D/g, '');
     if (normalizedPhone.length < 7) {
+      toast.error('Num?ro de t?l?phone invalide.');
       return;
     }
 
@@ -139,6 +142,7 @@ export function MembersPage() {
       try {
         uploadedUrl = await uploadPhoto(photoFile, 'members');
       } catch (err) {
+        toast.error('T?l?versement de la photo impossible.');
         return;
       }
     } else if (photoFile === null) {
@@ -161,6 +165,7 @@ export function MembersPage() {
     const ok = editingId ? await updateMember(editingId, payload) : await createMember(payload);
 
     if (ok) {
+      toast.success(editingId ? 'Modification r?ussie.' : 'Enregistrement r?ussi.');
       setIsModalOpen(false);
       setEditingId(null);
       resetForm();
@@ -174,6 +179,7 @@ export function MembersPage() {
 
     const ok = await deleteMember(deleteId);
     if (ok) {
+      toast.success('Suppression r?ussie.');
       setDeleteId(null);
     }
   };
@@ -250,23 +256,11 @@ export function MembersPage() {
               key: 'actions',
               label: 'Actions',
               render: (member) => {
-                const showActions = canUpdate || canDelete;
-                return showActions ? (
-                  <div className="flex gap-2">
-                    {canUpdate && (
-                      <AppButton size="sm" variant="secondary" onClick={() => openEditModal(member)}>
-                        Modifier
-                      </AppButton>
-                    )}
-                    {canDelete && (
-                      <AppButton size="sm" variant="danger" onClick={() => setDeleteId(member.id)}>
-                        Supprimer
-                      </AppButton>
-                    )}
-                  </div>
-                ) : (
-                  '-'
-                );
+                const items = [
+                  canUpdate ? { label: 'Modifier', onClick: () => openEditModal(member) } : null,
+                  canDelete ? { label: 'Supprimer', variant: 'danger' as const, onClick: () => setDeleteId(member.id) } : null,
+                ].filter(Boolean);
+                return <ActionMenu items={items} />;
               },
             },
           ]}

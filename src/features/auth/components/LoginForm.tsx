@@ -1,8 +1,8 @@
-import { AppButton, AppInput, FormFieldWrapper } from '@/components/ui';
+import { AppButton, AppInput, FormFieldWrapper, useToast } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { loginSchema } from '@/features/auth/schemas/loginSchema';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, Eye, EyeOff, Lock, Mail, Fingerprint, ShieldCheck, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Fingerprint, Loader2, Mail, ShieldCheck, LockKeyhole } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
@@ -10,11 +10,11 @@ import type { LoginSchema } from '@/features/auth/schemas/loginSchema';
 import { loginWithPasskey } from '@/utils/passkey';
 
 export function LoginForm() {
-  const { login, clearError, error: authError } = useAuth();
+  const { login, clearError } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const [passkeyError, setPasskeyError] = useState<string | null>(null);
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
 
   const {
@@ -31,118 +31,106 @@ export function LoginForm() {
 
   const onSubmit = async (values: LoginSchema) => {
     clearError();
-    setPasskeyError(null);
     const result = await login(values.email, values.password);
 
-    if (!result.error) {
-      navigate('/dashboard');
+    if (result.error) {
+      toast.error('Connexion échouée');
+      return;
     }
+
+    toast.success('Connexion réussie');
+    navigate('/dashboard');
   };
 
   const handlePasskeyLogin = async () => {
     if (isPasskeyLoading) return;
 
     clearError();
-    setPasskeyError(null);
     setIsPasskeyLoading(true);
     try {
       const credentials = await loginWithPasskey();
       const result = await login(credentials.email, credentials.authData);
-      if (!result.error) {
-        navigate('/dashboard');
+      if (result.error) {
+        toast.error('Connexion échouée');
+        return;
       }
-    } catch (err: any) {
-      setPasskeyError(err.message || "La connexion par Passkey a échoué.");
+      toast.success('Connexion réussie');
+      navigate('/dashboard');
+    } catch {
+      toast.error('Connexion échouée');
     } finally {
       setIsPasskeyLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="auth-login-form">
       <FormFieldWrapper label="Adresse email" error={errors.email?.message} required>
-        <div className="relative">
-          <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-          <AppInput
-            type="email"
-            placeholder="nom@ecnd.org"
-            className="h-12 rounded-xl border-slate-200 bg-white pl-10 focus:border-teal-500 text-sm"
-            {...register('email')}
-          />
+        <div className="auth-field-shell">
+          <Mail className="auth-field-icon" />
+          <AppInput type="email" placeholder="nom@ecnd.org" className="pl-16" {...register('email')} />
         </div>
       </FormFieldWrapper>
 
       <FormFieldWrapper label="Mot de passe" error={errors.password?.message} required>
-        <div className="relative">
-          <Lock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+        <div className="auth-field-shell">
+          <LockKeyhole className="auth-field-icon" />
           <AppInput
             type={showPassword ? 'text' : 'password'}
-            placeholder="••••••••"
-            className="h-12 rounded-xl border-slate-200 bg-white pl-10 pr-10 focus:border-teal-500 text-sm"
+            placeholder="Mot de passe"
+            className="pl-16 pr-14"
             {...register('password')}
           />
           <button
             type="button"
             onClick={() => setShowPassword((prev) => !prev)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+            className="auth-password-toggle"
+            aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
           >
-            {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            {showPassword ? <EyeOff className="size-6" /> : <Eye className="size-6" />}
           </button>
         </div>
       </FormFieldWrapper>
 
-      {(authError || passkeyError) ? (
-        <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm text-rose-700">
-          <AlertCircle className="size-4 shrink-0" />
-          <span>{authError || passkeyError}</span>
-        </div>
-      ) : null}
-
-      <div className="flex items-center justify-between text-sm">
-        <label className="inline-flex items-center gap-2 text-slate-600 cursor-pointer select-none">
+      <div className="auth-row">
+        <label className="auth-remember">
           <input
             type="checkbox"
             checked={rememberMe}
             onChange={(event) => setRememberMe(event.target.checked)}
-            className="size-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 accent-teal-600"
           />
-          Se souvenir de moi
+          <span>Se souvenir de moi</span>
         </label>
-        <Link to="/forgot-password" className="font-semibold text-teal-600 hover:text-teal-700 transition-colors">
+        <Link to="/forgot-password" className="auth-forgot-link">
           Mot de passe oublié ?
         </Link>
       </div>
 
-      <AppButton
-        type="submit"
-        className="h-12 w-full rounded-xl bg-[#0f172a] text-sm hover:bg-[#1e293b] text-white font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-sm"
-        isLoading={isSubmitting}
-      >
-        <Lock className="size-4" />
+      <AppButton type="submit" className="auth-submit" isLoading={isSubmitting}>
         Se connecter
       </AppButton>
 
-      <div className="flex items-center gap-3 py-1 text-xs text-slate-400 font-medium">
-        <span className="h-px flex-1 bg-slate-100" />
-        ou
-        <span className="h-px flex-1 bg-slate-100" />
+      <div className="auth-separator">
+        <span />
+        <strong>ou</strong>
+        <span />
       </div>
 
-      <button
+      <AppButton
         type="button"
         onClick={handlePasskeyLogin}
         disabled={isPasskeyLoading || isSubmitting}
-        className="h-12 w-full rounded-xl border border-teal-600 bg-white hover:bg-teal-50/30 text-teal-600 font-bold text-sm flex items-center justify-center gap-2 cursor-pointer transition-colors disabled:cursor-not-allowed disabled:opacity-70"
+        variant="secondary"
+        className="auth-passkey"
       >
         {isPasskeyLoading ? <Loader2 className="size-5 animate-spin" /> : <Fingerprint className="size-5" />}
         {isPasskeyLoading ? 'Connexion...' : 'Continuer avec Passkey'}
-      </button>
+      </AppButton>
 
-      <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400 mt-2.5 font-medium">
-        <ShieldCheck className="size-4 text-teal-500/80" />
+      <div className="auth-secure-note">
+        <ShieldCheck className="size-6" />
         <span>Connexion sécurisée par passkey</span>
       </div>
     </form>
   );
 }
-

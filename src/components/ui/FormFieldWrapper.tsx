@@ -1,4 +1,4 @@
-﻿import { cn } from '@/lib/cn';
+import { cn } from '@/lib/cn';
 import type { PropsWithChildren } from 'react';
 
 interface FormFieldWrapperProps extends PropsWithChildren {
@@ -18,15 +18,14 @@ export function FormFieldWrapper({
   children,
 }: FormFieldWrapperProps) {
   return (
-    <label className={cn('flex w-full flex-col gap-1.5 text-sm', className)}>
-      <span className="font-medium text-slate-700">
+    <label className={cn('flex w-full flex-col gap-1.5 text-[var(--text-sm)]', className)}>
+      <span className="font-medium text-[var(--on-surface)]">
         {label}
-        {required ? <span className="text-rose-600"> *</span> : null}
+        {required ? <span className="text-[var(--error)]"> *</span> : null}
       </span>
       {children}
-      {error ? <span className="text-xs text-rose-600">{error}</span> : null}
-      {!error && hint ? <span className="text-xs text-slate-500">{hint}</span> : null}
+      {error ? <span className="text-[var(--text-sm)] text-[var(--error)]">{error}</span> : null}
+      {!error && hint ? <span className="text-[var(--text-sm)] text-[var(--on-surface-variant)]">{hint}</span> : null}
     </label>
   );
 }
-

@@ -180,6 +180,39 @@ export async function verifyCardByToken(qrToken: string): Promise<CardVerificati
   };
 }
 
+export async function verifyCardByTokenOrNumber(inputTokenOrNumber: string): Promise<CardVerification> {
+  const normalizedInput = extractQrToken(inputTokenOrNumber);
+  if (!normalizedInput) return { success: false, result: 'invalid', message: verificationMessages.invalid };
+
+  // First try direct RPC with the token
+  try {
+    const directResult = await verifyCardByToken(normalizedInput);
+    if (directResult.result !== 'invalid') {
+      return directResult;
+    }
+  } catch (err) {
+    console.warn("Direct RPC verify_user_card token check failed, checking card number fallback:", err);
+  }
+
+  // Fallback: search user_cards table by card_number or qr_token
+  try {
+    const { data: cardRow, error: cardError } = await supabase
+      .from('user_cards')
+      .select('qr_token, card_number')
+      .or(`card_number.eq.${normalizedInput},qr_token.eq.${normalizedInput},card_number.ilike.%${normalizedInput}%`)
+      .limit(1)
+      .maybeSingle();
+
+    if (!cardError && cardRow?.qr_token) {
+      return await verifyCardByToken(cardRow.qr_token);
+    }
+  } catch (fallbackErr) {
+    console.error("Card number fallback search error:", fallbackErr);
+  }
+
+  return { success: false, result: 'invalid', message: verificationMessages.invalid };
+}
+
 export async function logCardScan({
   cardId,
   qrToken,

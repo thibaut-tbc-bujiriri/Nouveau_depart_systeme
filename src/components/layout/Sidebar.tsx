@@ -2,7 +2,7 @@ import logo from '@/assets/ecdn_logo.png';
 import { navItems } from '@/data';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/cn';
-import { filterNavItemsForRole, roleLabels } from '@/lib/permissions';
+import { filterNavItemsForRole } from '@/lib/permissions';
 import { useEffect, useMemo, useState } from 'react';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import type { LucideIcon } from 'lucide-react';
@@ -12,11 +12,10 @@ import {
   Building2,
   CalendarDays,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Headphones,
   Landmark,
-  LayoutDashboard,
+  LayoutGrid,
+  Menu,
   Network,
   Settings,
   ScanLine,
@@ -28,12 +27,13 @@ import {
   Wallet,
   X,
 } from 'lucide-react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 
 const iconMap: Record<string, LucideIcon> = {
-  'layout-dashboard': LayoutDashboard,
+  'layout-dashboard': LayoutGrid,
   'building-2': Building2,
   users: Users,
+  members: Users,
   network: Network,
   wallet: Wallet,
   church: Landmark,
@@ -43,33 +43,42 @@ const iconMap: Record<string, LucideIcon> = {
   'user-circle-2': UserCircle2,
   'user-cog': UserCog,
   'scan-line': ScanLine,
+  services: CalendarDays,
+  events: CalendarDays,
+  'teaching-programs': BarChart3,
+  finances: Wallet,
+  reports: BarChart3,
+  'annual-themes': Landmark,
+  profile: UserCircle2,
+  branches: Building2,
+  departments: Network,
 };
 
 const menuCategories = [
   {
     key: 'dashboard',
-    label: 'Dashboard',
+    label: 'Tableau de bord',
     type: 'link' as const,
     to: '/dashboard',
-    icon: LayoutDashboard,
+    icon: LayoutGrid,
   },
   {
     key: 'administration',
-    label: 'ADMINISTRATION',
+    label: 'Administration',
     type: 'group' as const,
     icon: Shield,
     subKeys: ['branches', 'users', 'members', 'departments'],
   },
   {
     key: 'activities',
-    label: 'ACTIVITÉS',
+    label: 'Activités',
     type: 'group' as const,
     icon: Activity,
     subKeys: ['services', 'events', 'teaching-programs'],
   },
   {
     key: 'management',
-    label: 'GESTION & SYSTÈME',
+    label: 'Gestion & Système',
     type: 'group' as const,
     icon: Sliders,
     subKeys: ['finances', 'reports', 'card-scanner', 'annual-themes', 'settings', 'profile'],
@@ -95,6 +104,7 @@ function SidebarContent({
   const { user } = useAuth();
   const { t } = usePreferences();
   const location = useLocation();
+  const navigate = useNavigate();
   const currentPath = location.pathname;
 
   if (!user) {
@@ -154,42 +164,35 @@ function SidebarContent({
   };
 
   return (
-    <div className="flex h-full flex-col justify-between">
+    <div className="flex h-full flex-col justify-between bg-white text-slate-800">
       <div>
-        {/* Profile Card Header */}
-        <div className={cn("transition-all duration-300", isCollapsed ? "p-2" : "p-4")}>
-          <div className={cn(
-            "relative flex bg-[#112240] border border-slate-700/20 transition-all duration-300",
-            isCollapsed ? "flex-col items-center p-2 gap-2 rounded-xl" : "items-center gap-3 p-4 rounded-2xl"
-          )}>
-            <img src={logo} alt="ECND" className="size-11 rounded-full border-2 border-cyan-400 object-cover shrink-0" />
-            {!isCollapsed && (
-              <div className="transition-opacity duration-300">
-                <p className="text-sm font-bold text-white tracking-wide">ECND Admin</p>
-                <p className="text-xs font-medium text-slate-400 mt-0.5">{roleLabels[user.role]}</p>
-              </div>
-            )}
+        {/* Header: Centered Logo with 3-bars toggle button next to it */}
+        <div className="flex items-center justify-between px-4 py-5 border-b border-slate-100/60">
+          <div className="flex items-center gap-3">
+            <div className="relative size-12 rounded-full p-1 bg-white ring-2 ring-[#009688]/30 shadow-xs flex items-center justify-center shrink-0">
+              <img src={logo} alt="ECND Logo" className="size-full rounded-full object-cover" />
+            </div>
+          </div>
+          {onToggleCollapse && (
             <button
               onClick={onToggleCollapse}
-              className={cn(
-                "rounded-full p-1 text-slate-500 hover:bg-slate-800 hover:text-white transition-all",
-                isCollapsed ? "relative mt-0.5" : "absolute right-3 top-1/2 -translate-y-1/2"
-              )}
-              aria-label={isCollapsed ? "Expand" : "Collapse"}
+              className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+              aria-label="Basculer le menu"
+              title="Réduire / Agrandir le menu"
             >
-              {isCollapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+              <Menu className="size-5" />
             </button>
-          </div>
+          )}
         </div>
 
         {/* Navigation Items */}
-        <nav className="space-y-4 px-3 py-2">
+        <nav className="space-y-3 px-3.5 py-3">
           {menuCategories.map((category) => {
             if (category.type === 'link') {
               const item = filteredNavItems.find((i) => i.key === category.key);
               if (!item) return null;
 
-              const Icon = iconMap[item.icon] ?? LayoutDashboard;
+              const Icon = iconMap[item.icon] ?? LayoutGrid;
               const isActive = currentPath === item.to || currentPath.startsWith(item.to + '/');
 
               return (
@@ -199,14 +202,14 @@ function SidebarContent({
                   onClick={onCloseMobile}
                   title={isCollapsed ? t('sidebar.' + item.key) : undefined}
                   className={cn(
-                    'group flex items-center rounded-xl transition-all duration-200 font-medium text-sm',
-                    isCollapsed ? 'justify-center p-3' : 'gap-3 px-4 py-3',
+                    'group flex items-center transition-all duration-200 font-normal text-base cursor-pointer select-none no-underline border-b-0 outline-none focus:outline-none rounded-2xl',
+                    isCollapsed ? 'justify-center p-3' : 'gap-3 px-4 py-3.5',
                     isActive
-                      ? 'bg-teal-600 font-semibold text-white shadow-lg shadow-teal-900/30'
-                      : 'text-slate-300 hover:bg-slate-800/40 hover:text-white',
+                      ? 'bg-[#009688] text-white shadow-md shadow-[#009688]/25'
+                      : 'text-slate-700 hover:bg-slate-100/80 hover:text-slate-900',
                   )}
                 >
-                  <Icon className={cn('size-5 shrink-0', isActive ? 'text-white' : 'text-slate-400 group-hover:text-white')} />
+                  <Icon className={cn('size-5 shrink-0', isActive ? 'text-white' : 'text-[#009688]')} />
                   {!isCollapsed && <span>{t('sidebar.' + item.key)}</span>}
                 </NavLink>
               );
@@ -222,59 +225,97 @@ function SidebarContent({
 
               return (
                 <div key={category.key} className="space-y-1">
-                  {isCollapsed ? (
-                    <div className="border-t border-slate-800/60 my-4 mx-2" />
-                  ) : (
-                    <p className="px-4 py-1 text-[11px] font-bold tracking-wider text-slate-500 uppercase">
-                      {t('sidebar.' + category.key).toUpperCase()}
-                    </p>
-                  )}
                   <button
                     onClick={() => handleGroupClick(category.key)}
                     title={isCollapsed ? t('sidebar.' + category.key) : undefined}
                     className={cn(
-                      'w-full group flex items-center rounded-xl transition-all duration-200 outline-none font-medium text-sm',
-                      isCollapsed ? 'justify-center p-3' : 'justify-between px-4 py-3',
-                      isGroupActive
-                        ? 'bg-slate-800/40 text-cyan-400 font-semibold'
-                        : 'text-slate-300 hover:bg-slate-800/40 hover:text-white',
+                      'w-full group flex items-center rounded-2xl border transition-all duration-200 outline-none focus:outline-none border-b-0 font-normal text-base cursor-pointer select-none',
+                      isCollapsed ? 'justify-center p-3' : 'justify-between px-4 py-3.5',
+                      isOpen
+                        ? 'bg-white border-slate-200/90 text-slate-900'
+                        : isGroupActive
+                        ? 'bg-white border-[#009688]/40 text-slate-900'
+                        : 'bg-white border-slate-200/80 text-slate-800 hover:bg-slate-50 hover:border-slate-300',
                     )}
                   >
                     <div className={cn('flex items-center', isCollapsed ? 'gap-0' : 'gap-3')}>
-                      <category.icon className={cn('size-5 transition-colors duration-200', isGroupActive ? 'text-cyan-400' : 'text-slate-400 group-hover:text-white')} />
+                      <category.icon
+                        className={cn(
+                          'size-5 shrink-0 transition-colors duration-200',
+                          isOpen || isGroupActive ? 'text-[#009688]' : 'text-slate-600 group-hover:text-slate-800',
+                        )}
+                      />
                       {!isCollapsed && <span>{t('sidebar.' + category.key)}</span>}
                     </div>
                     {!isCollapsed && (
                       <ChevronDown
                         className={cn(
-                          'size-4 text-slate-400 transition-transform duration-200 group-hover:text-white shrink-0',
-                          isOpen && 'rotate-180',
-                          isGroupActive && 'text-cyan-400',
+                          'size-4 text-slate-400 transition-transform duration-200 group-hover:text-slate-600 shrink-0',
+                          isOpen && 'rotate-180 text-slate-700',
                         )}
                       />
                     )}
                   </button>
+
+                  {/* Tree View Submenus (Arborescence) with Icons & Shadow */}
                   {isOpen && !isCollapsed && (
-                    <div className="mt-1 space-y-1 pl-4 transition-all duration-200">
+                    <div className="relative pl-5 py-2 space-y-2.5">
+                      {/* Vertical line stem */}
+                      <div className="absolute left-[29px] top-3 bottom-4 w-[1.5px] bg-slate-300" />
+
                       {visibleSubItems.map((subItem) => {
-                        const SubIcon = iconMap[subItem.icon] ?? LayoutDashboard;
                         const isSubActive = isSubItemActive(subItem.to);
+                        const SubIcon = iconMap[subItem.icon] ?? LayoutGrid;
+
                         return (
                           <NavLink
                             key={subItem.key}
                             to={subItem.to}
                             onClick={onCloseMobile}
-                            className={
-                              cn(
-                                'group flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition-all duration-200 font-medium',
-                                isSubActive
-                                  ? 'bg-teal-600 font-semibold text-white shadow-lg shadow-teal-900/30'
-                                  : 'text-slate-400 hover:bg-slate-800/40 hover:text-white',
-                              )
-                            }
+                            className={cn(
+                              'group relative flex items-center gap-2.5 text-sm transition-all cursor-pointer select-none no-underline border-b-0 outline-none focus:outline-none rounded-xl px-2.5 py-2',
+                              isSubActive
+                                ? 'bg-emerald-50/70 border border-[#009688]/30 shadow-md shadow-[#009688]/15'
+                                : 'hover:bg-slate-50 border border-transparent',
+                            )}
                           >
-                            <SubIcon className={cn('size-4 shrink-0', isSubActive ? 'text-white' : 'text-slate-400 group-hover:text-white')} />
-                            <span>{t('sidebar.' + subItem.key)}</span>
+                            {/* Circle dot and horizontal connector */}
+                            <div className="flex items-center shrink-0 z-10 pl-0.5">
+                              <span
+                                className={cn(
+                                  'size-2 rounded-full ring-2 ring-white transition-all',
+                                  isSubActive
+                                    ? 'bg-[#009688] ring-[#009688]/30'
+                                    : 'bg-slate-400 group-hover:bg-slate-500',
+                                )}
+                              />
+                              <span
+                                className={cn(
+                                  'w-3 h-[1.5px] transition-colors',
+                                  isSubActive ? 'bg-[#009688]' : 'bg-slate-300 group-hover:bg-slate-400',
+                                )}
+                              />
+                            </div>
+
+                            {/* Submenu Icon */}
+                            <SubIcon
+                              className={cn(
+                                'size-4 shrink-0 transition-colors',
+                                isSubActive ? 'text-[#009688]' : 'text-slate-500 group-hover:text-slate-700',
+                              )}
+                            />
+
+                            {/* Label Text */}
+                            <span
+                              className={cn(
+                                'text-sm transition-colors truncate',
+                                isSubActive
+                                  ? 'font-bold text-[#009688]'
+                                  : 'font-normal text-slate-700 hover:text-slate-900',
+                              )}
+                            >
+                              {t('sidebar.' + subItem.key)}
+                            </span>
                           </NavLink>
                         );
                       })}
@@ -287,25 +328,19 @@ function SidebarContent({
         </nav>
       </div>
 
-      {/* Support Card Footer */}
-      <div className={cn("transition-all duration-300", isCollapsed ? "p-2" : "p-4")}>
-        <div 
-          className={cn(
-            "flex bg-[#112240]/40 border border-slate-700/20 transition-all duration-300",
-            isCollapsed ? "flex-col items-center p-2 rounded-xl" : "items-center gap-3 p-4 rounded-2xl"
-          )}
+      {/* Footer: Simple "Besoin d'aide ?" without card style */}
+      <div className="px-4 py-4 mt-auto">
+        <button
+          onClick={() => {
+            navigate('/settings');
+            if (onCloseMobile) onCloseMobile();
+          }}
           title={isCollapsed ? t('sidebar.need_help') : undefined}
+          className="flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-[#009688] hover:opacity-80 transition-opacity w-full text-left cursor-pointer no-underline border-b-0 outline-none focus:outline-none"
         >
-          <div className="grid size-10 place-items-center rounded-xl bg-[#0f172a] text-teal-400 shrink-0">
-            <Headphones className="size-5" />
-          </div>
-          {!isCollapsed && (
-            <div>
-              <p className="text-sm font-bold text-white">{t('sidebar.need_help')}</p>
-              <p className="text-xs font-medium text-slate-400 mt-0.5">{t('sidebar.contact_support')}</p>
-            </div>
-          )}
-        </div>
+          <Headphones className="size-5 text-[#009688] shrink-0" />
+          {!isCollapsed && <span>{t('sidebar.need_help')}</span>}
+        </button>
       </div>
     </div>
   );
@@ -317,25 +352,33 @@ export function Sidebar({
   isCollapsed = false,
   onToggleCollapse,
 }: SidebarProps) {
+  const [isHoverExpanded, setIsHoverExpanded] = useState(false);
+
+  // Hover auto-expands when locked collapsed, unless user manually clicks toggle
+  const effectiveCollapsed = isCollapsed && !isHoverExpanded;
+
   return (
     <>
       <aside
+        onMouseEnter={() => setIsHoverExpanded(true)}
+        onMouseLeave={() => setIsHoverExpanded(false)}
         className={cn(
-          "app-shell-height hidden shrink-0 overflow-y-auto bg-gradient-to-b from-[#0a1424] to-[#0c1c38] lg:block transition-all duration-300 ease-in-out print:hidden",
-          isCollapsed ? "w-20" : "w-72"
+          'app-shell-height hidden shrink-0 overflow-y-auto bg-white lg:block transition-all duration-300 ease-in-out print:hidden border-r-0 select-none shadow-xs z-30',
+          effectiveCollapsed ? 'w-20' : 'w-64',
         )}
       >
         <SidebarContent
-          isCollapsed={isCollapsed}
+          onCloseMobile={onCloseMobile}
+          isCollapsed={effectiveCollapsed}
           onToggleCollapse={onToggleCollapse}
         />
       </aside>
- 
+
       <div className={cn('fixed inset-0 z-40 lg:hidden print:hidden', isMobileOpen ? 'block' : 'hidden')}>
-        <button className="absolute inset-0 bg-slate-950/60" onClick={onCloseMobile} aria-label="Fermer le menu" />
-        <aside className="relative h-full w-[min(18rem,86vw)] overflow-y-auto bg-gradient-to-b from-[#0a1424] to-[#0c1c38] shadow-xl">
-          <button onClick={onCloseMobile} className="absolute right-3 top-3 rounded-md p-1 text-slate-300 hover:bg-slate-800" aria-label="Fermer">
-            <X className="size-4" />
+        <button className="absolute inset-0 bg-slate-950/40 backdrop-blur-xs" onClick={onCloseMobile} aria-label="Fermer le menu" />
+        <aside className="relative h-full w-[min(18rem,86vw)] overflow-y-auto bg-white shadow-2xl">
+          <button onClick={onCloseMobile} className="absolute right-3 top-3 z-10 rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label="Fermer">
+            <X className="size-5" />
           </button>
           <SidebarContent onCloseMobile={onCloseMobile} isCollapsed={false} />
         </aside>

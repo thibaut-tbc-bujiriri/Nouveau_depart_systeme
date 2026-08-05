@@ -1,5 +1,5 @@
 import { BranchAvatar, DataTable, EmptyState, LoadingState, PageHeader, StatCard } from '@/components/common';
-import { AppButton, AppInput, FormFieldWrapper, PhotoUpload, SearchInput } from '@/components/ui';
+import { ActionMenu, AppButton, AppInput, FormFieldWrapper, PhotoUpload, SearchInput, useToast } from '@/components/ui';
 import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import { useBranches } from '@/hooks/useBranches';
@@ -44,6 +44,7 @@ function buildBranchCode(name: string) {
 
 export function BranchesPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const {
     branches,
     isLoading,
@@ -152,6 +153,7 @@ export function BranchesPage() {
 
   const handleSubmit = async () => {
     if (!form.name.trim() || !form.code.trim()) {
+      toast.error('Veuillez remplir les champs obligatoires.');
       return;
     }
 
@@ -160,6 +162,7 @@ export function BranchesPage() {
       try {
         uploadedUrl = await uploadPhoto(photoFile, 'branches');
       } catch (err) {
+        toast.error('T?l?versement de la photo impossible.');
         return;
       }
     } else if (photoFile === null) {
@@ -176,6 +179,7 @@ export function BranchesPage() {
       : await createBranch(payload);
 
     if (ok) {
+      toast.success(editingId ? 'Modification r?ussie.' : 'Enregistrement r?ussi.');
       setIsModalOpen(false);
       setForm(initialBranchForm);
       setEditingId(null);
@@ -189,6 +193,7 @@ export function BranchesPage() {
 
     const ok = await deleteBranch(deleteId);
     if (ok) {
+      toast.success('Suppression r?ussie.');
       setDeleteId(null);
     }
   };
@@ -250,16 +255,12 @@ export function BranchesPage() {
               key: 'actions',
               label: 'Actions',
               render: (branch) => (
-                <div className="flex gap-2">
-                  <AppButton size="sm" variant="secondary" onClick={() => openEditModal(branch)}>
-                    Modifier
-                  </AppButton>
-                  {user.role === 'superadmin' ? (
-                    <AppButton size="sm" variant="danger" onClick={() => setDeleteId(branch.id)}>
-                      Supprimer
-                    </AppButton>
-                  ) : null}
-                </div>
+                <ActionMenu
+                  items={[
+                    { label: 'Modifier', onClick: () => openEditModal(branch) },
+                    user.role === 'superadmin' ? { label: 'Supprimer', variant: 'danger', onClick: () => setDeleteId(branch.id) } : null,
+                  ].filter(Boolean)}
+                />
               ),
             },
           ]}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BookOpen, Edit3, Trash2, PlusCircle, Quote, Sparkles } from 'lucide-react';
 import { SectionCard } from '@/components/dashboard/SectionCard';
-import { Modal, AppButton, AppInput, AppTextarea, ConfirmDialog } from '@/components/ui';
+import { Modal, AppButton, AppInput, AppTextarea, ConfirmDialog, useToast } from '@/components/ui';
 import { getActiveDailyVerse, publishDailyVerse, updateDailyVerse, deactivateDailyVerse } from '@/services/dailyVerseService';
 import type { DailyVerse } from '@/services/dailyVerseService';
 import type { Profile } from '@/types';
@@ -21,7 +21,7 @@ export function DailyVerseCard({ user }: DailyVerseCardProps) {
   const [verseReference, setVerseReference] = useState('');
   const [verseText, setVerseText] = useState('');
   const [inspirationalMessage, setInspirationalMessage] = useState('');
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const toast = useToast();
 
   const loadActiveVerse = async () => {
     try {
@@ -36,6 +36,7 @@ export function DailyVerseCard({ user }: DailyVerseCardProps) {
         setVerseReference('');
         setVerseText('');
         setInspirationalMessage('');
+      toast.success('Verset d?sactiv? avec succ?s.');
       }
     } catch (err) {
       console.error("Failed to load active daily verse:", err);
@@ -49,7 +50,6 @@ export function DailyVerseCard({ user }: DailyVerseCardProps) {
   }, []);
 
   const handleOpenPublishModal = () => {
-    setErrorMsg(null);
     if (verse) {
       setVerseReference(verse.verseReference);
       setVerseText(verse.verseText);
@@ -65,14 +65,13 @@ export function DailyVerseCard({ user }: DailyVerseCardProps) {
   const handlePublishOrSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!verseReference.trim() || !verseText.trim()) {
-      setErrorMsg("La référence biblique et le texte du verset sont obligatoires.");
+      toast.error('La r?f?rence biblique et le texte du verset sont obligatoires.');
       return;
     }
 
     try {
       setIsSaving(true);
-      setErrorMsg(null);
-      
+
       const payload = {
         verseReference: verseReference.trim(),
         verseText: verseText.trim(),
@@ -89,10 +88,11 @@ export function DailyVerseCard({ user }: DailyVerseCardProps) {
         setVerse(published);
       }
 
+      toast.success(verse ? 'Verset modifi? avec succ?s.' : 'Verset publi? avec succ?s.');
       setIsModalOpen(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error saving daily verse:", err);
-      setErrorMsg(err.message || "Erreur lors de la sauvegarde.");
+      toast.error(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde.');
     } finally {
       setIsSaving(false);
     }
@@ -114,6 +114,7 @@ export function DailyVerseCard({ user }: DailyVerseCardProps) {
       setInspirationalMessage('');
     } catch (err) {
       console.error("Error deactivating daily verse:", err);
+      toast.error('D?sactivation impossible.');
     } finally {
       setIsLoading(false);
     }
@@ -226,9 +227,6 @@ export function DailyVerseCard({ user }: DailyVerseCardProps) {
           className="max-w-xl"
         >
           <form onSubmit={handlePublishOrSave} className="space-y-4">
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Ce verset et son message inspirant seront visibles par tous les utilisateurs connectés sur leur dashboard pour une durée de 24 heures.
-            </p>
 
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-700">Référence biblique *</label>
@@ -265,12 +263,6 @@ export function DailyVerseCard({ user }: DailyVerseCardProps) {
               <span className="font-bold text-slate-700">Durée d'affichage</span>
               <span className="font-extrabold text-emerald-700 uppercase tracking-wider">24 heures</span>
             </div>
-
-            {errorMsg && (
-              <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-xs font-semibold text-rose-800">
-                {errorMsg}
-              </div>
-            )}
 
             <div className="flex justify-end gap-2 pt-2">
               <AppButton

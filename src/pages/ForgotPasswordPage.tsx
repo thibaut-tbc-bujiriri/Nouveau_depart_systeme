@@ -1,6 +1,6 @@
 import { AppButton, AppInput, FormFieldWrapper } from '@/components/ui';
 import { resetPasswordForEmail } from '@/services/auth.service';
-import { CircleHelp, Lock, Mail, MailCheck } from 'lucide-react';
+import { AlertCircle, CircleHelp, Mail, MailCheck } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -11,20 +11,14 @@ export function ForgotPasswordPage() {
   const [isSending, setIsSending] = useState(false);
 
   return (
-    <div className="space-y-5">
-      <div className="mx-auto grid size-14 place-items-center rounded-full bg-emerald-100 text-emerald-700 md:hidden">
-        <Lock className="size-6" />
-      </div>
-
+    <div className="space-y-4">
       {sent ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+        <div className="rounded-[var(--radius-md)] border border-[var(--primary)] bg-white p-3 text-[var(--on-surface)]">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 rounded-full bg-emerald-100 p-2 text-emerald-700">
-              <MailCheck className="size-4" />
-            </div>
+            <MailCheck className="mt-0.5 size-4 shrink-0 text-[var(--primary)]" />
             <div>
-              <p className="text-sm font-semibold text-emerald-800">Lien envoye</p>
-              <p className="mt-1 text-sm text-emerald-700">Un lien de reinitialisation a ete envoye a votre email.</p>
+              <p className="font-medium text-[var(--on-surface)]">Lien envoyé</p>
+              <p className="mt-1 text-[var(--on-surface-variant)]">Un lien de réinitialisation a été envoyé à votre email.</p>
             </div>
           </div>
         </div>
@@ -49,38 +43,43 @@ export function ForgotPasswordPage() {
         >
           <FormFieldWrapper label="Adresse email" required>
             <div className="relative">
-              <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+              <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--on-surface-variant)]" />
               <AppInput
                 type="email"
                 placeholder="nom@ecnd.org"
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="h-11 rounded-xl border-slate-300 bg-slate-50/50 pl-10 focus:bg-white"
+                className="pl-10"
               />
             </div>
           </FormFieldWrapper>
 
-          {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+          {error ? (
+            <p className="flex items-center gap-2 text-[var(--error)]">
+              <AlertCircle className="size-4" />
+              {error}
+            </p>
+          ) : null}
 
-          <AppButton type="submit" isLoading={isSending} className="h-11 w-full rounded-xl bg-emerald-600 hover:bg-emerald-500">
+          <AppButton type="submit" isLoading={isSending} className="w-full">
             Envoyer le lien
           </AppButton>
         </form>
       )}
 
-      <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-4 md:hidden">
+      <div className="rounded-[var(--radius-md)] border border-[var(--outline)] bg-[var(--surface-container-low)] p-3">
         <div className="flex items-start gap-3">
-          <CircleHelp className="mt-0.5 size-4 text-emerald-700" />
+          <CircleHelp className="mt-0.5 size-4 text-[var(--primary)]" />
           <div>
-            <p className="text-sm font-semibold text-emerald-800">Besoin d'aide ?</p>
-            <p className="mt-1 text-sm text-emerald-700">Contactez le responsable de votre eglise locale.</p>
+            <p className="font-medium text-[var(--on-surface)]">Besoin d'aide ?</p>
+            <p className="mt-1 text-[var(--on-surface-variant)]">Contactez le responsable de votre église locale.</p>
           </div>
         </div>
       </div>
 
-      <Link to="/login" className="block text-center text-sm font-medium text-emerald-700 hover:text-emerald-600">
-        Retour a la connexion
+      <Link to="/login" className="block text-center text-[var(--text-base)] font-medium text-[var(--primary)] hover:text-[var(--primary-container)]">
+        Retour à la connexion
       </Link>
     </div>
   );

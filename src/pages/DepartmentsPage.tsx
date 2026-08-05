@@ -1,13 +1,11 @@
 import { DataTable, DepartmentBadge, EmptyState, LoadingState, PageHeader } from '@/components/common';
-import { AppButton, FormFieldWrapper, SearchInput, AppCombobox } from '@/components/ui';
+import { ActionMenu, AppButton, FormFieldWrapper, SearchInput, AppCombobox, useToast } from '@/components/ui';
 import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import { toBaseDepartment, useDepartments } from '@/hooks/useDepartments';
 import { useBranches } from '@/hooks/useBranches';
-import { useMembers } from '@/hooks/useMembers';
-import { useUsersManagement } from '@/hooks/useUsersManagement';
 import { useMemo, useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { X, Info, Plus, Edit2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { usePreferences } from '@/contexts/PreferencesContext';
@@ -51,11 +49,11 @@ const initialForm: DepartmentFormState = {
 
 export function DepartmentsPage() {
   const { user } = useAuth();
-  const { formatMoney, t } = usePreferences();
+  const toast = useToast();
+  const navigate = useNavigate();
+  const { t } = usePreferences();
   const { departments, isLoading, isMutating, error, createDepartment, updateDepartment, deleteDepartment, renameDepartmentName } = useDepartments();
-  const { members } = useMembers();
   const { branches } = useBranches();
-  const { users } = useUsersManagement();
   const [query, setQuery] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -271,6 +269,7 @@ export function DepartmentsPage() {
 
   const handleSubmit = async () => {
     if (!form.branchId) {
+      toast.error('Veuillez remplir les champs obligatoires.');
       return;
     }
 
@@ -285,6 +284,7 @@ export function DepartmentsPage() {
       };
       const ok = await updateDepartment(editingId, payload);
       if (ok) {
+        toast.success('Modification r?ussie.');
         setIsModalOpen(false);
         resetForm();
         setEditingId(null);
@@ -292,6 +292,7 @@ export function DepartmentsPage() {
     } else {
       // Multiple / Single create submit: created directly under branch
       if (selectedNames.length === 0) {
+        toast.error('Veuillez s?lectionner au moins un d?partement.');
         return;
       }
       try {
@@ -308,11 +309,12 @@ export function DepartmentsPage() {
             isActive: form.isActive, // apply active checkbox to all newly assigned
           });
         }
+        toast.success('Enregistrement r?ussi.');
         setIsModalOpen(false);
         resetForm();
         setSelectedNames([]);
       } catch (err) {
-        // error is handled by useDepartments
+        toast.error('Enregistrement impossible.');
       }
     }
   };
@@ -328,6 +330,7 @@ export function DepartmentsPage() {
     };
     const ok = await updateDepartment(budgetDept.id, payload);
     if (ok) {
+      toast.success('Modification r?ussie.');
       setIsBudgetModalOpen(false);
       setBudgetDept(null);
     }
@@ -360,6 +363,7 @@ export function DepartmentsPage() {
 
     const ok = await deleteDepartment(deleteId);
     if (ok) {
+      toast.success('Suppression r?ussie.');
       setDeleteId(null);
     }
   };
@@ -415,64 +419,21 @@ export function DepartmentsPage() {
               key: 'responsible',
               label: 'Responsable',
               render: (department) => {
-                const mgr = users.find((u) => u.role === 'department_manager' && u.departmentIds.includes(department.id));
-                return mgr ? mgr.fullName : 'A affecter';
-              },
-            },
-            {
-              key: 'members',
-              label: 'Membres',
-              render: (department) => {
-                const count = members.filter((member) => member.departmentIds.includes(department.id)).length;
-                const preview = members
-                  .filter((member) => member.departmentIds.includes(department.id))
-                  .slice(0, 2)
-                  .map((member) => `${member.firstName} ${member.lastName}`);
-
-                return (
-                  <div>
-                    <p className="font-medium text-slate-700">{count} membre(s)</p>
-                    <p className="text-xs text-slate-500">{preview.length > 0 ? preview.join(', ') : 'Aucun membre'}</p>
-                  </div>
-                );
-              },
-            },
-            { key: 'budget', label: 'Budget Mensuel', render: (department) => formatMoney(department.monthlyBudget) },
-            {
-              key: 'actions',
-              label: 'Details',
-              render: (department) => {
                 const isDeptManager = user?.role === 'department_manager' && user.departmentIds.includes(department.id);
-                return (
-                  <div className="flex items-center gap-2">
-                    <Link to={`/departments/${department.id}`} className="font-medium text-slate-700 hover:text-slate-900">
-                      Ouvrir
-                    </Link>
-                    {canUpdate && (
-                      <AppButton size="sm" variant="secondary" onClick={() => openEditModal(department)}>
-                        Modifier
-                      </AppButton>
-                    )}
-                    {canDelete && (
-                      <AppButton size="sm" variant="danger" onClick={() => setDeleteId(department.id)}>
-                        Supprimer
-                      </AppButton>
-                    )}
-                    {!canUpdate && isDeptManager && (
-                      <AppButton
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => {
-                          setBudgetDept(department);
-                          setBudgetVal(department.monthlyBudget);
-                          setIsBudgetModalOpen(true);
-                        }}
-                      >
-                        Modifier le budget
-                      </AppButton>
-                    )}
-                  </div>
-                );
+                const items = [
+                  { label: 'Ouvrir', onClick: () => navigate(`/departments/${department.id}`) },
+                  canUpdate ? { label: 'Modifier', onClick: () => openEditModal(department) } : null,
+                  canDelete ? { label: 'Supprimer', variant: 'danger' as const, onClick: () => setDeleteId(department.id) } : null,
+                  !canUpdate && isDeptManager ? {
+                    label: 'Modifier le budget',
+                    onClick: () => {
+                      setBudgetDept(department);
+                      setBudgetVal(department.monthlyBudget);
+                      setIsBudgetModalOpen(true);
+                    },
+                  } : null,
+                ].filter(Boolean);
+                return <ActionMenu items={items} />;
               },
             },
           ]}

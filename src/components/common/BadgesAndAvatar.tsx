@@ -39,7 +39,8 @@ export function Avatar({ name, avatarUrl, size = 'md', className }: AvatarProps)
     lg: 'size-12 text-sm',
   };
 
-  const initials = name
+  const safeName = name || '';
+  const initials = safeName
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
@@ -55,7 +56,7 @@ export function Avatar({ name, avatarUrl, size = 'md', className }: AvatarProps)
       )}
     >
       {avatarUrl ? (
-        <img src={avatarUrl} alt={name} className="h-full w-full object-cover" />
+        <img src={avatarUrl} alt={safeName} className="h-full w-full object-cover" />
       ) : (
         <span>{initials}</span>
       )}

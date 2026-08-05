@@ -1,4 +1,5 @@
-﻿import { cn } from '@/lib/cn';
+import { cn } from '@/lib/cn';
+import { Loader2 } from 'lucide-react';
 import type { ButtonHTMLAttributes, PropsWithChildren } from 'react';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -11,16 +12,16 @@ interface AppButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>, PropsW
 }
 
 const variantClasses: Record<Variant, string> = {
-  primary: 'bg-slate-900 text-white hover:bg-slate-800',
-  secondary: 'bg-slate-100 text-slate-800 hover:bg-slate-200',
-  ghost: 'bg-transparent text-slate-700 hover:bg-slate-100',
-  danger: 'bg-rose-600 text-white hover:bg-rose-500',
+  primary: 'bg-[var(--primary)] text-[var(--on-primary)] hover:bg-[var(--primary-container)]',
+  secondary: 'border border-[var(--primary)] bg-[var(--surface-container-lowest)] text-[var(--primary)] hover:bg-[var(--surface-container-low)]',
+  ghost: 'bg-transparent text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)] hover:text-[var(--on-surface)]',
+  danger: 'bg-[var(--error)] text-[var(--on-error)] hover:bg-[var(--error-container)]',
 };
 
 const sizeClasses: Record<Size, string> = {
-  sm: 'h-9 px-3 text-sm',
-  md: 'h-10 px-4 text-sm',
-  lg: 'h-11 px-5 text-base',
+  sm: 'h-8 px-3 text-[var(--text-sm)]',
+  md: 'h-9 px-4 text-[var(--text-sm)]',
+  lg: 'h-10 px-5 text-[var(--text-base)]',
 };
 
 export function AppButton({
@@ -34,8 +35,9 @@ export function AppButton({
 }: AppButtonProps) {
   return (
     <button
+      data-variant={variant}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60',
+        'app-button inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] font-medium leading-none shadow-none transition-colors disabled:cursor-not-allowed disabled:opacity-60',
         variantClasses[variant],
         sizeClasses[size],
         className,
@@ -43,8 +45,8 @@ export function AppButton({
       disabled={disabled || isLoading}
       {...props}
     >
+      {isLoading ? <Loader2 className="size-4 animate-spin" /> : null}
       {isLoading ? 'Chargement...' : children}
     </button>
   );
 }
-

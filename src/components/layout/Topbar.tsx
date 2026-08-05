@@ -10,7 +10,6 @@ import {
   ChevronDown,
   LogOut,
   Menu,
-  Search,
   User,
   Settings,
   Sliders,
@@ -429,8 +428,8 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
   return (
     <header className="shrink-0 border-b border-slate-100 bg-white px-3 py-2.5 shadow-sm sm:px-6 sm:py-3.5 print:hidden">
       <div className="flex min-w-0 items-center justify-between gap-2 sm:gap-4">
-        {/* Left Search Bar */}
-        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 lg:max-w-xs">
+        {/* Left Side (Mobile Menu Toggle) */}
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={onToggleMobileSidebar}
             className="grid size-10 place-items-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 lg:hidden"
@@ -438,20 +437,6 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
           >
             <Menu className="size-5" />
           </button>
-
-          <div className="hidden lg:block w-full">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Rechercher..."
-                className="h-10 w-full rounded-xl bg-slate-50 pl-9 pr-12 text-sm text-slate-700 placeholder-slate-400 border border-transparent focus:bg-white focus:border-slate-200 outline-none transition-all"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-400 shadow-sm pointer-events-none">
-                ⌘ K
-              </span>
-            </div>
-          </div>
         </div>
 
         {/* Center Supervision Info */}
@@ -602,10 +587,10 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               className="flex items-center gap-3 pl-3 border-l border-slate-100 hover:opacity-80 transition-opacity cursor-pointer select-none text-left focus:outline-none"
             >
-              <Avatar name={user.fullName} avatarUrl={user.avatarUrl} size="md" />
+              <Avatar name={user?.fullName || user?.email || 'Utilisateur'} avatarUrl={user?.avatarUrl} size="md" />
               <div className="hidden xl:block">
-                <p className="text-sm font-bold text-slate-800 leading-none">{user.fullName}</p>
-                <p className="text-xs font-medium text-slate-400 mt-1 leading-none">{roleLabels[user.role]}</p>
+                <p className="text-sm font-bold text-slate-800 leading-none">{user?.fullName || user?.email || 'Utilisateur'}</p>
+                <p className="text-xs font-medium text-slate-400 mt-1 leading-none">{user?.role ? roleLabels[user.role] || user.role : ''}</p>
               </div>
               <ChevronDown className={cn("size-4 text-slate-400 hidden xl:block transition-transform duration-200", isDropdownOpen && "rotate-180")} />
             </button>
@@ -614,10 +599,10 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
               <div className="absolute right-0 z-50 mt-2.5 w-[min(16rem,calc(100vw-1.5rem))] space-y-1 rounded-xl border border-slate-100 bg-white p-2 shadow-xl animate-fadeIn sm:rounded-2xl">
                 {/* User Card inside dropdown */}
                 <div className="flex items-center gap-3 p-3 border-b border-slate-50 mb-1">
-                  <Avatar name={user.fullName} avatarUrl={user.avatarUrl} size="md" />
-                  <div className="text-left">
-                    <p className="text-sm font-bold text-slate-800 leading-none">{user.fullName}</p>
-                    <p className="text-xs font-medium text-slate-400 mt-1 leading-none">{roleLabels[user.role]}</p>
+                  <Avatar name={user?.fullName || user?.email || 'Utilisateur'} avatarUrl={user?.avatarUrl} size="md" />
+                  <div className="text-left min-w-0 flex-1">
+                    <p className="text-sm font-bold text-slate-800 leading-none truncate">{user?.fullName || user?.email || 'Utilisateur'}</p>
+                    <p className="text-xs font-medium text-slate-400 mt-1 leading-none truncate">{user?.role ? roleLabels[user.role] || user.role : ''}</p>
                     <div className="flex items-center gap-1.5 mt-2">
                       <span className="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
                       <span className="text-[10px] font-semibold text-emerald-600">{t('topbar.online')}</span>

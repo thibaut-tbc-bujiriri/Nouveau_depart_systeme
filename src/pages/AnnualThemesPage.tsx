@@ -1,5 +1,5 @@
 ﻿import { DataTable, EmptyState, LoadingState, PageHeader } from '@/components/common';
-import { AppButton, AppInput, AppTextarea, FormFieldWrapper } from '@/components/ui';
+import { ActionMenu, AppButton, AppInput, AppTextarea, FormFieldWrapper, useToast } from '@/components/ui';
 import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -24,6 +24,7 @@ const emptyForm: AnnualThemeInput = {
 
 export function AnnualThemesPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const [themes, setThemes] = useState<AnnualTheme[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -87,11 +88,12 @@ export function AnnualThemesPage() {
       } else {
         await createAnnualTheme(form, user.id);
       }
+      toast.success(editingTheme ? 'Modification r?ussie.' : 'Enregistrement r?ussi.');
       setIsModalOpen(false);
       setEditingTheme(null);
       await loadThemes();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Enregistrement impossible.');
+      toast.error(err instanceof Error ? err.message : 'Enregistrement impossible.');
     } finally {
       setIsSaving(false);
     }
@@ -103,10 +105,11 @@ export function AnnualThemesPage() {
     setError(null);
     try {
       await setAnnualThemeActive(toggleTheme.id, !toggleTheme.isActive);
+      toast.success('Statut modifi? avec succ?s.');
       setToggleTheme(null);
       await loadThemes();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Changement de statut impossible.');
+      toast.error(err instanceof Error ? err.message : 'Changement de statut impossible.');
     } finally {
       setIsSaving(false);
     }
@@ -169,15 +172,16 @@ export function AnnualThemesPage() {
               key: 'actions',
               label: 'Actions',
               render: (theme) => canManage ? (
-                <div className="flex flex-wrap gap-2">
-                  <AppButton size="sm" variant="secondary" onClick={() => openEdit(theme)}>
-                    <Edit className="size-4" /> Modifier
-                  </AppButton>
-                  <AppButton size="sm" variant={theme.isActive ? 'ghost' : 'secondary'} onClick={() => setToggleTheme(theme)}>
-                    {theme.isActive ? <Archive className="size-4" /> : <CheckCircle2 className="size-4" />}
-                    {theme.isActive ? 'Archiver' : 'Activer'}
-                  </AppButton>
-                </div>
+                <ActionMenu
+                  items={[
+                    { label: 'Modifier', icon: <Edit className="size-4" />, onClick: () => openEdit(theme) },
+                    {
+                      label: theme.isActive ? 'Archiver' : 'Activer',
+                      icon: theme.isActive ? <Archive className="size-4" /> : <CheckCircle2 className="size-4" />,
+                      onClick: () => setToggleTheme(theme),
+                    },
+                  ]}
+                />
               ) : 'Consultation',
             },
           ]}
@@ -204,7 +208,6 @@ export function AnnualThemesPage() {
             <input type="checkbox" checked={form.isActive} onChange={(e) => setForm((prev) => ({ ...prev, isActive: e.target.checked }))} className="size-4 accent-teal-600" />
             Activer ce thème pour l’année
           </label>
-          {error ? <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
           <div className="flex justify-end gap-2">
             <AppButton variant="secondary" onClick={() => setIsModalOpen(false)}>Annuler</AppButton>
             <AppButton onClick={handleSave} isLoading={isSaving}>Enregistrer</AppButton>

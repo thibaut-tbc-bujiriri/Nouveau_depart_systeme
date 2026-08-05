@@ -3,7 +3,7 @@ import { Camera, CheckCircle2, Play, Power, ScanLine, XCircle, AlertTriangle, Re
 import { useEffect, useRef, useState } from 'react';
 import { AppButton, AppInput } from '@/components/ui';
 import { PageHeader } from '@/components/common';
-import { extractQrToken, logCardScan, verifyCardByToken, type CardVerification } from '@/services/userCard.service';
+import { extractQrToken, logCardScan, verifyCardByTokenOrNumber, type CardVerification } from '@/services/userCard.service';
 import { roleLabels } from '@/lib/permissions';
 import type { Role } from '@/types';
 
@@ -27,6 +27,7 @@ export function CardScannerPage() {
   const resolvingRef = useRef(false);
   const [isScanning, setIsScanning] = useState(false);
   const [cameraState, setCameraState] = useState<'inactive' | 'starting' | 'scanning' | 'error'>('inactive');
+  const [isResolving, setIsResolving] = useState(false);
   const [manualToken, setManualToken] = useState('');
   const [result, setResult] = useState<CardVerification | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,15 +54,19 @@ export function CardScannerPage() {
     if (resolvingRef.current) return;
     const token = extractQrToken(rawToken);
     if (!token) {
-      setError('QR code illisible ou format de token invalide.');
+      setError('QR code illisible ou format invalide.');
       return;
     }
     resolvingRef.current = true;
+    setIsResolving(true);
     setError(null);
     try {
-      const verification = await verifyCardByToken(token);
+      const verification = await verifyCardByTokenOrNumber(token);
       setResult(verification);
-      
+
+      // Reset input field on manual verification
+      setManualToken('');
+
       try {
         await logCardScan({
           cardId: verification.card?.id ?? null,
@@ -80,10 +85,11 @@ export function CardScannerPage() {
       setError(
         verificationError instanceof Error
           ? verificationError.message
-          : 'Erreur lors de la vérification Supabase.'
+          : 'Erreur lors de la vérification.'
       );
     } finally {
       resolvingRef.current = false;
+      setIsResolving(false);
     }
   };
 
@@ -100,8 +106,8 @@ export function CardScannerPage() {
         scannerRef.current = scanner;
         await scanner.start(
           { facingMode: 'environment' },
-          { 
-            fps: 10, 
+          {
+            fps: 10,
             qrbox: (width, height) => {
               const min = Math.min(width, height);
               const size = Math.floor(min * 0.75);
@@ -120,8 +126,8 @@ export function CardScannerPage() {
         setIsScanning(false);
         setCameraState('error');
         setCameraErrorDetail(
-          cameraError instanceof Error 
-            ? cameraError.message 
+          cameraError instanceof Error
+            ? cameraError.message
             : 'Veuillez vérifier les permissions de caméra du navigateur.'
         );
       }
@@ -153,7 +159,6 @@ export function CardScannerPage() {
     });
   };
 
-  // Mask function for card numbers
   const getMaskedCardNumber = (cardNumber?: string) => {
     if (!cardNumber) return '';
     if (cardNumber.length <= 8) return cardNumber;
@@ -162,7 +167,6 @@ export function CardScannerPage() {
     return `${first} •••• ${last}`;
   };
 
-  // Details for deactivation warning
   const getDeactivationDetails = () => {
     if (!result) return { title: 'Carte désactivée', subtitle: 'Cette carte a été désactivée.' };
     switch (result.result) {
@@ -179,7 +183,7 @@ export function CardScannerPage() {
       case 'invalid':
         return {
           title: 'Carte inconnue',
-          subtitle: 'Cette carte n\'existe pas ou le code QR est invalide. Les informations complètes ne sont pas accessibles.'
+          subtitle: 'Cette carte n\'existe pas ou le code de vérification est invalide.'
         };
       case 'revoked':
       case 'inactive':
@@ -194,38 +198,35 @@ export function CardScannerPage() {
   const deactivationInfo = getDeactivationDetails();
 
   return (
-    <div className="space-y-6">
-      <PageHeader 
-        title="Scanner cartes" 
-        description="Scannez le QR code d’une carte utilisateur pour vérifier son authenticité et afficher les informations du titulaire." 
+    <div className="space-y-4 sm:space-y-6 max-w-full overflow-hidden">
+      <PageHeader
+        title="Scanner cartes"
+        description="Scannez le QR code d’une carte ou saisissez le numéro de carte pour vérifier son authenticité et afficher les informations du titulaire."
       />
 
-      <div className="grid gap-6 lg:grid-cols-12">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-12">
         {/* Left Column: Scanner Panel + Manual Input Panel */}
-        <div className="space-y-6 lg:col-span-5">
+        <div className="space-y-4 sm:space-y-6 lg:col-span-5">
           {/* Panel 1: Scanner la carte */}
-          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-1">
-              <div className="grid size-10 place-items-center rounded-xl bg-teal-50 text-teal-600">
+              <div className="grid size-10 place-items-center rounded-xl bg-teal-50 text-teal-600 shrink-0">
                 <Camera className="size-5" />
               </div>
-              <div className="text-left">
-                <h2 className="text-base font-bold text-slate-800">Scanner la carte</h2>
-                <p className="text-xs text-slate-500">Placez la carte devant la caméra</p>
+              <div className="text-left min-w-0">
+                <h2 className="text-base font-bold text-slate-800 truncate">Scanner la carte</h2>
+                <p className="text-xs text-slate-500 truncate">Placez la carte devant la caméra</p>
               </div>
             </div>
 
             {/* Camera Viewport Area */}
-            <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-slate-900 border border-slate-200/60 flex flex-col items-center justify-center text-center p-4 min-h-[250px] mt-4">
-              {/* HTML5 QR Code Container */}
-              <div 
-                id={readerId} 
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
-                  cameraState === 'scanning' ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                }`}
+            <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-slate-900 border border-slate-200/60 flex flex-col items-center justify-center text-center p-3 sm:p-4 min-h-[200px] sm:min-h-[250px] mt-4">
+              <div
+                id={readerId}
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${cameraState === 'scanning' ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
               />
 
-              {/* Viewport Corner Markers [ ] */}
               <div className="absolute inset-4 pointer-events-none border-teal-500/80 z-20">
                 <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-teal-400 rounded-tl" />
                 <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-teal-400 rounded-tr" />
@@ -233,45 +234,41 @@ export function CardScannerPage() {
                 <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-teal-400 rounded-br" />
               </div>
 
-              {/* Inactive State Overlay */}
               {cameraState === 'inactive' && (
-                <div className="space-y-2 text-slate-400 z-10">
-                  <Camera className="mx-auto size-8 text-slate-500 opacity-60" />
-                  <p className="font-semibold text-sm text-slate-200">La caméra est prête</p>
-                  <p className="text-xs text-slate-500 max-w-[200px] mx-auto">
+                <div className="space-y-2 text-slate-400 z-10 px-2">
+                  <Camera className="mx-auto size-7 sm:size-8 text-slate-500 opacity-60" />
+                  <p className="font-semibold text-xs sm:text-sm text-slate-200">La caméra est prête</p>
+                  <p className="text-[11px] sm:text-xs text-slate-500 max-w-[200px] mx-auto">
                     Positionnez la carte pour commencer
                   </p>
                 </div>
               )}
 
-              {/* Starting State Overlay */}
               {cameraState === 'starting' && (
                 <div className="space-y-3 text-slate-400 z-10">
                   <RefreshCw className="mx-auto size-8 animate-spin text-teal-400" />
-                  <p className="text-sm font-semibold text-slate-300">Initialisation de la caméra...</p>
+                  <p className="text-xs sm:text-sm font-semibold text-slate-300">Initialisation de la caméra...</p>
                 </div>
               )}
 
-              {/* Error State Overlay */}
               {cameraState === 'error' && (
-                <div className="space-y-3 text-rose-500 z-10 px-4">
-                  <AlertTriangle className="mx-auto size-10" />
+                <div className="space-y-3 text-rose-500 z-10 px-3">
+                  <AlertTriangle className="mx-auto size-8 sm:size-10" />
                   <div>
-                    <p className="font-bold text-sm text-rose-400">Erreur caméra</p>
-                    <p className="text-xs text-slate-400 mt-1 line-clamp-3">
-                      {cameraErrorDetail || "Impossible d'accéder à la caméra. Vérifiez vos autorisations."}
+                    <p className="font-bold text-xs sm:text-sm text-rose-400">Erreur caméra</p>
+                    <p className="text-[11px] sm:text-xs text-slate-400 mt-1 line-clamp-3">
+                      {cameraErrorDetail || "Impossible d'accéder à la caméra."}
                     </p>
                   </div>
                 </div>
               )}
 
-              {/* Scanning Active Overlay Indicator (only shown while scanning) */}
               {cameraState === 'scanning' && (
                 <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none z-10">
-                  <div className="w-[160px] h-[160px] relative">
+                  <div className="w-[140px] sm:w-[160px] h-[140px] sm:h-[160px] relative">
                     <div className="absolute inset-x-0 top-0 h-0.5 bg-teal-400 shadow-md shadow-teal-400 animate-bounce" style={{ animationDuration: '2.5s' }} />
                   </div>
-                  <span className="mt-8 text-xs font-semibold text-white bg-slate-950/80 px-3 py-1 rounded-full backdrop-blur-sm tracking-wider uppercase">
+                  <span className="mt-6 text-[10px] sm:text-xs font-semibold text-white bg-slate-950/80 px-3 py-1 rounded-full backdrop-blur-sm tracking-wider uppercase">
                     Scan en cours...
                   </span>
                 </div>
@@ -279,57 +276,56 @@ export function CardScannerPage() {
             </div>
 
             {/* Controls */}
-            <div className="mt-5 flex flex-wrap gap-3">
-              <AppButton 
+            <div className="mt-4 sm:mt-5 flex flex-col sm:flex-row gap-2.5">
+              <AppButton
                 onClick={() => void startScanner()}
                 disabled={cameraState === 'starting' || cameraState === 'scanning'}
-                className="flex-1 bg-teal-600 text-white hover:bg-teal-700 animate-none"
+                className="w-full sm:flex-1 bg-teal-600 text-white hover:bg-teal-700"
               >
                 <Play className="size-4 mr-1.5" />
                 Démarrer le scan
               </AppButton>
-              <AppButton 
+              <AppButton
                 variant="ghost"
                 onClick={() => void stopScanner()}
                 disabled={!isScanning}
-                className="flex-1 border border-rose-200 text-rose-600 bg-white hover:bg-rose-50 hover:text-rose-700"
+                className="w-full sm:flex-1 border border-rose-200 text-rose-600 bg-white hover:bg-rose-50 hover:text-rose-700"
               >
                 <Power className="size-4 mr-1.5 text-rose-500" />
                 Arrêter le scan
               </AppButton>
             </div>
 
-            {/* Scanner connection state */}
-            <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-slate-500 font-medium">
+            <div className="mt-3 sm:mt-4 flex items-center justify-center gap-1.5 text-xs text-slate-500 font-medium">
               <span className={`size-2 rounded-full ${cameraState === 'scanning' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-350'}`} />
               <span>{cameraState === 'scanning' ? 'Scanner connecté' : 'Scanner hors ligne'}</span>
             </div>
           </section>
 
           {/* Panel 2: Vérification Manuelle */}
-          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-6 shadow-sm">
             <h2 className="mb-3 text-base font-bold text-slate-800 flex items-center gap-2">
-              <Keyboard className="size-5 text-teal-600" />
-              Vérification manuelle
+              <Keyboard className="size-5 text-teal-600 shrink-0" />
+              <span>Vérification manuelle</span>
             </h2>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <AppInput 
-                value={manualToken} 
-                onChange={(event) => setManualToken(event.target.value)} 
-                placeholder="USER_CARD:abc123... ou token" 
-                className="flex-1"
-                disabled={resolvingRef.current}
+            <div className="flex flex-col sm:flex-row gap-2.5">
+              <AppInput
+                value={manualToken}
+                onChange={(event) => setManualToken(event.target.value)}
+                placeholder="Ex: N° de carte ou token"
+                className="w-full flex-1"
+                disabled={isResolving}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && manualToken.trim()) {
                     void resolveToken(manualToken, 'Vérification manuelle');
                   }
                 }}
               />
-              <AppButton 
-                disabled={!manualToken.trim() || resolvingRef.current} 
+              <AppButton
+                disabled={!manualToken.trim() || isResolving}
                 onClick={() => void resolveToken(manualToken, 'Vérification manuelle')}
-                isLoading={resolvingRef.current}
-                className="shrink-0 bg-slate-900 hover:bg-slate-800"
+                isLoading={isResolving}
+                className="w-full sm:w-auto shrink-0 bg-slate-900 hover:bg-slate-800"
               >
                 Vérifier
               </AppButton>
@@ -339,72 +335,62 @@ export function CardScannerPage() {
 
         {/* Right Column: Result Panel */}
         <div className="lg:col-span-7">
-          <section className="h-full rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-start min-h-[400px]">
-            <h2 className="mb-5 text-base font-bold text-slate-800 flex items-center gap-2 pb-3 border-b border-slate-100 text-left">
-              <Shield className="size-5 text-teal-600" />
-              Résultat de la vérification
+          <section className="h-full rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm flex flex-col justify-start min-h-[350px] sm:min-h-[400px]">
+            <h2 className="mb-4 sm:mb-5 text-base font-bold text-slate-800 flex items-center gap-2 pb-3 border-b border-slate-100 text-left">
+              <Shield className="size-5 text-teal-600 shrink-0" />
+              <span>Résultat de la vérification</span>
             </h2>
 
-            {/* Error Message */}
             {error && (
-              <div className="mb-5 flex gap-3 rounded-xl bg-rose-50 border border-rose-100 p-4 text-sm text-rose-800 text-left">
+              <div className="mb-5 flex gap-3 rounded-xl bg-rose-50 border border-rose-100 p-3.5 sm:p-4 text-xs sm:text-sm text-rose-800 text-left">
                 <XCircle className="size-5 shrink-0 text-rose-500 mt-0.5" />
                 <div>
-                  <h4 className="font-bold">Erreur de scan</h4>
+                  <h4 className="font-bold">Erreur de vérification</h4>
                   <p className="mt-0.5 font-medium">{error}</p>
                 </div>
               </div>
             )}
 
-            {/* No result and no error */}
             {!result && !error && (
-              <div className="my-auto py-20 text-center text-slate-400 flex flex-col items-center justify-center">
-                <div className="grid size-16 place-items-center rounded-2xl bg-slate-50 text-slate-400 mb-4 border border-dashed border-slate-200">
-                  <ScanLine className="size-8" />
+              <div className="my-auto py-12 sm:py-20 text-center text-slate-400 flex flex-col items-center justify-center px-2">
+                <div className="grid size-14 sm:size-16 place-items-center rounded-2xl bg-slate-50 text-slate-400 mb-4 border border-dashed border-slate-200">
+                  <ScanLine className="size-7 sm:size-8" />
                 </div>
-                <h3 className="font-semibold text-slate-700">En attente d'une carte</h3>
-                <p className="text-xs text-slate-500 max-w-xs mt-1">
-                  Scannez un QR code à l'aide de la caméra ou saisissez le token manuellement ci-contre pour afficher les informations de vérification.
-                </p>
               </div>
             )}
 
-            {/* Verification Result Display */}
             {result && (
-              <div className="flex-grow flex flex-col justify-between">
-                {/* ACTIVE CARD PATH: DISPLAY FULL INFORMATION */}
+              <div className="flex-grow flex flex-col justify-between space-y-4">
                 {isValid && result.user && result.card ? (
-                  <div className="space-y-6 text-left">
+                  <div className="space-y-4 sm:space-y-6 text-left">
                     {/* Status Banner */}
-                    <div className="flex gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900">
-                      <CheckCircle2 className="size-6 shrink-0 text-emerald-500" />
+                    <div className="flex gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3.5 sm:p-4 text-xs sm:text-sm text-emerald-900">
+                      <CheckCircle2 className="size-5 sm:size-6 shrink-0 text-emerald-500 mt-0.5 sm:mt-0" />
                       <div>
-                        <h3 className="font-bold text-base leading-none">Carte vérifiée avec succès</h3>
-                        <p className="mt-1 font-medium">{result.message}</p>
+                        <h3 className="font-bold text-sm sm:text-base leading-none">Carte vérifiée avec succès</h3>
+                        <p className="mt-1 font-medium text-xs sm:text-sm">{result.message}</p>
                       </div>
                     </div>
 
                     {/* User profile summary */}
-                    <div className="flex flex-col sm:flex-row items-center gap-4 bg-slate-50/50 border border-slate-100 p-4 rounded-xl">
-                      {/* Avatar */}
-                      <div className="size-20 rounded-full overflow-hidden border border-slate-200/80 bg-slate-100 flex items-center justify-center shrink-0">
+                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 bg-slate-50/50 border border-slate-100 p-4 rounded-xl text-center sm:text-left">
+                      <div className="size-16 sm:size-20 rounded-full overflow-hidden border border-slate-200/80 bg-slate-100 flex items-center justify-center shrink-0">
                         {result.user.avatarUrl ? (
-                          <img 
-                            src={result.user.avatarUrl} 
-                            alt={result.user.fullName} 
-                            className="size-full object-cover" 
+                          <img
+                            src={result.user.avatarUrl}
+                            alt={result.user.fullName}
+                            className="size-full object-cover"
                           />
                         ) : (
-                          <div className="grid size-full place-items-center bg-slate-800 text-2xl font-bold text-white uppercase">
+                          <div className="grid size-full place-items-center bg-slate-800 text-xl sm:text-2xl font-bold text-white uppercase">
                             {result.user.fullName.split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('') || '?'}
                           </div>
                         )}
                       </div>
 
-                      {/* Header details */}
-                      <div className="text-center sm:text-left">
-                        <h3 className="text-lg font-bold text-slate-900">{result.user.fullName}</h3>
-                        <p className="text-sm font-semibold text-teal-600 mt-0.5">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-base sm:text-lg font-bold text-slate-900 truncate">{result.user.fullName}</h3>
+                        <p className="text-xs sm:text-sm font-semibold text-teal-600 mt-0.5">
                           {getRoleLabel(result.user.role)}
                         </p>
                         <div className="mt-2 flex flex-wrap justify-center sm:justify-start gap-1.5">
@@ -414,10 +400,9 @@ export function CardScannerPage() {
                             </span>
                           )}
                           {result.user.status && (
-                            <span 
-                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border ${
-                                userStatusStyles[result.user.status]?.bg || 'bg-slate-50 border-slate-200 text-slate-600'
-                              }`}
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border ${userStatusStyles[result.user.status]?.bg || 'bg-slate-50 border-slate-200 text-slate-600'
+                                }`}
                             >
                               Utilisateur : {userStatusStyles[result.user.status]?.label || result.user.status}
                             </span>
@@ -427,17 +412,17 @@ export function CardScannerPage() {
                     </div>
 
                     {/* Metadata details list */}
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
                       <div className="rounded-xl border border-slate-100 p-3.5 space-y-1">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Coordonnées</span>
-                        <div className="space-y-1.5 text-sm text-slate-700">
+                        <div className="space-y-1.5 text-xs sm:text-sm text-slate-700">
                           <p className="flex items-center gap-2 truncate">
                             <Mail className="size-4 text-slate-400 shrink-0" />
                             <span className="truncate">{result.user.email}</span>
                           </p>
-                          <p className="flex items-center gap-2">
+                          <p className="flex items-center gap-2 truncate">
                             <Phone className="size-4 text-slate-400 shrink-0" />
-                            <span>{result.user.phone || 'Non renseigné'}</span>
+                            <span className="truncate">{result.user.phone || 'Non renseigné'}</span>
                           </p>
                         </div>
                       </div>
@@ -447,32 +432,31 @@ export function CardScannerPage() {
                         <div className="flex flex-wrap gap-1.5 pt-1">
                           {result.user.departments && result.user.departments.length > 0 ? (
                             result.user.departments.map((dept, idx) => (
-                              <span 
-                                key={idx} 
+                              <span
+                                key={idx}
                                 className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-100"
                               >
                                 {dept}
                               </span>
                             ))
                           ) : (
-                            <span className="text-sm text-slate-500 italic">Aucun département</span>
+                            <span className="text-xs sm:text-sm text-slate-500 italic">Aucun département</span>
                           )}
                         </div>
                       </div>
 
                       <div className="rounded-xl border border-slate-100 p-3.5 space-y-1.5">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Informations Carte</span>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 text-xs sm:text-sm">
                           <div>
                             <span className="text-xs text-slate-400 block">N° de carte</span>
-                            <span className="font-semibold text-slate-800 font-mono">{result.card.cardNumber}</span>
+                            <span className="font-semibold text-slate-800 font-mono truncate block">{result.card.cardNumber}</span>
                           </div>
                           <div>
                             <span className="text-xs text-slate-400 block">Statut Carte</span>
-                            <span 
-                              className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-bold border ${
-                                cardStatusStyles[result.card.status]?.bg || 'bg-slate-50 border-slate-200 text-slate-600'
-                              }`}
+                            <span
+                              className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-bold border mt-0.5 ${cardStatusStyles[result.card.status]?.bg || 'bg-slate-50 border-slate-200 text-slate-600'
+                                }`}
                             >
                               {cardStatusStyles[result.card.status]?.label || result.card.status}
                             </span>
@@ -482,7 +466,7 @@ export function CardScannerPage() {
 
                       <div className="rounded-xl border border-slate-100 p-3.5 space-y-1.5">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Validité & Cycle</span>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 text-xs sm:text-sm">
                           <div>
                             <span className="text-xs text-slate-400 block">Émise le</span>
                             <span className="font-semibold text-slate-800">{formatDate(result.card.issuedAt)}</span>
@@ -498,33 +482,28 @@ export function CardScannerPage() {
                     </div>
                   </div>
                 ) : (
-                  /* DEACTIVATED OR EXPIRED CARD PATH: SECURE / PRIVACY MODE (mockup 3 style) */
-                  <div className="flex-grow flex flex-col justify-start text-center space-y-6">
-                    {/* Big alert icon */}
-                    <div className="mx-auto grid size-20 place-items-center rounded-full bg-rose-50 text-rose-500 border border-rose-100/60 mt-4 shadow-sm">
-                      <AlertTriangle className="size-10 text-rose-600" />
+                  <div className="flex-grow flex flex-col justify-start text-center space-y-4 sm:space-y-6">
+                    <div className="mx-auto grid size-16 sm:size-20 place-items-center rounded-full bg-rose-50 text-rose-500 border border-rose-100/60 mt-2 sm:mt-4 shadow-sm">
+                      <AlertTriangle className="size-8 sm:size-10 text-rose-600" />
                     </div>
 
-                    {/* Bold Warning State Title */}
                     <div>
-                      <h3 className="text-2xl font-bold text-rose-600 leading-tight">
+                      <h3 className="text-xl sm:text-2xl font-bold text-rose-600 leading-tight">
                         {deactivationInfo.title}
                       </h3>
-                      <p className="text-sm text-slate-500 max-w-md mx-auto mt-2 font-medium">
+                      <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto mt-2 font-medium px-2">
                         {deactivationInfo.subtitle}
                       </p>
                     </div>
 
-                    {/* Limited details card snippet (if user is resolved) */}
                     {result.user && result.card && (
-                      <div className="w-full max-w-md mx-auto rounded-2xl border border-slate-100 bg-slate-50/50 p-4 flex items-center gap-4 text-left mt-2">
-                        {/* Photo */}
+                      <div className="w-full max-w-md mx-auto rounded-2xl border border-slate-100 bg-slate-50/50 p-4 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left mt-2">
                         <div className="size-14 rounded-full overflow-hidden border border-slate-200/80 bg-slate-100 flex items-center justify-center shrink-0">
                           {result.user.avatarUrl ? (
-                            <img 
-                              src={result.user.avatarUrl} 
-                              alt={result.user.fullName} 
-                              className="size-full object-cover" 
+                            <img
+                              src={result.user.avatarUrl}
+                              alt={result.user.fullName}
+                              className="size-full object-cover"
                             />
                           ) : (
                             <div className="grid size-full place-items-center bg-slate-800 text-lg font-bold text-white uppercase">
@@ -533,13 +512,12 @@ export function CardScannerPage() {
                           )}
                         </div>
 
-                        {/* Name and role */}
                         <div className="min-w-0">
                           <h4 className="font-bold text-slate-900 text-base truncate">{result.user.fullName}</h4>
                           <p className="text-xs font-semibold text-teal-600 mt-0.5">
                             {getRoleLabel(result.user.role)}
                           </p>
-                          <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-1.5 font-mono">
+                          <p className="text-xs text-slate-500 flex items-center justify-center sm:justify-start gap-1.5 mt-1.5 font-mono">
                             <CreditCard className="size-3.5 text-slate-400" />
                             <span>Carte n° {getMaskedCardNumber(result.card.cardNumber)}</span>
                           </p>
@@ -549,8 +527,7 @@ export function CardScannerPage() {
                   </div>
                 )}
 
-                {/* Bottom info banner (always shown) */}
-                <div className="mt-auto pt-6 border-t border-slate-100 flex items-center justify-center gap-1.5 text-xs text-slate-400 font-medium">
+                <div className="mt-auto pt-4 sm:pt-6 border-t border-slate-100 flex items-center justify-center gap-1.5 text-xs text-slate-400 font-medium">
                   <Info className="size-4 shrink-0 text-slate-400" />
                   <span>Pour plus d'informations, contactez l'administration.</span>
                 </div>

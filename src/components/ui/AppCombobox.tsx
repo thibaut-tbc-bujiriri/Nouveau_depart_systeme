@@ -28,33 +28,35 @@ export function AppCombobox({
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Close when clicking outside
+  const closeCombobox = () => {
+    setIsOpen(false);
+    setSearch('');
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+        closeCombobox();
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Clear search on close
-  useEffect(() => {
-    if (!isOpen) {
-      setSearch('');
-    }
-  }, [isOpen]);
-
   const selectedOption = options.find((opt) => opt.value === value);
-
-  const filteredOptions = options.filter((opt) =>
-    opt.label.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredOptions = options.filter((opt) => opt.label.toLowerCase().includes(search.toLowerCase()));
 
   const handleSelect = (val: string) => {
     onChange(val);
-    setIsOpen(false);
+    closeCombobox();
+  };
+
+  const toggleCombobox = () => {
+    if (isOpen) {
+      closeCombobox();
+      return;
+    }
+    setIsOpen(true);
   };
 
   return (
@@ -62,46 +64,44 @@ export function AppCombobox({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={toggleCombobox}
         className={cn(
-          'flex h-10 w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200',
-          disabled && 'cursor-not-allowed bg-slate-50 text-slate-400',
+          'app-field flex h-9 w-full items-center justify-between rounded-[var(--radius-md)] border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-3 text-left text-[var(--text-base)] text-[var(--on-surface)] outline-none transition focus:border-[#6675e9] focus:ring-0',
+          disabled && 'cursor-not-allowed bg-[var(--surface-container-low)] text-[var(--on-surface-variant)]',
         )}
       >
-        <span className={cn(!selectedOption && 'text-slate-400 truncate')}>
+        <span className={cn('truncate', !selectedOption && 'text-[var(--on-surface-variant)]')}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
-        <ChevronDown className="size-4 text-slate-400 shrink-0 ml-2" />
+        <ChevronDown className="ml-2 size-4 shrink-0 text-[var(--on-surface-variant)]" />
       </button>
 
-      {isOpen && (
-        <div className="absolute z-50 mt-1 max-h-60 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg animate-in fade-in-50 slide-in-from-top-1 duration-150 flex flex-col">
-          {/* Search Input */}
-          <div className="flex items-center border-b border-slate-100 px-2.5 py-1.5 shrink-0 bg-slate-50/50">
-            <Search className="size-3.5 text-slate-400 shrink-0 mr-1.5" />
+      {isOpen ? (
+        <div className="absolute z-50 mt-1 flex max-h-60 w-full flex-col overflow-hidden rounded-[var(--radius-md)] border border-[var(--outline)] bg-[var(--surface-container-lowest)] shadow-[var(--shadow-card)]">
+          <div className="flex shrink-0 items-center border-b border-[var(--outline)] bg-[var(--surface-container-low)] px-3 py-2">
+            <Search className="mr-2 size-3.5 shrink-0 text-[var(--on-surface-variant)]" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher..."
-              className="w-full bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400 py-1"
+              className="w-full border-0 bg-transparent py-0 text-[var(--text-sm)] text-[var(--on-surface)] outline-none placeholder:text-[var(--on-surface-variant)] focus:border-0"
               autoFocus
             />
-            {search && (
+            {search ? (
               <button
                 type="button"
                 onClick={() => setSearch('')}
-                className="rounded-full p-0.5 hover:bg-slate-200 transition"
+                className="grid size-5 place-items-center rounded-[var(--radius-full)] bg-transparent text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-high)]"
               >
-                <X className="size-3 text-slate-400" />
+                <X className="size-3" />
               </button>
-            )}
+            ) : null}
           </div>
 
-          {/* Options List */}
-          <div className="overflow-y-auto flex-1 max-h-48 py-1 divide-y divide-slate-50">
+          <div className="max-h-48 flex-1 overflow-y-auto py-1">
             {filteredOptions.length === 0 ? (
-              <div className="px-3 py-2 text-xs text-slate-400 italic text-center">
+              <div className="px-3 py-2 text-center text-[var(--text-sm)] text-[var(--on-surface-variant)]">
                 Aucun résultat
               </div>
             ) : (
@@ -113,8 +113,8 @@ export function AppCombobox({
                     type="button"
                     onClick={() => handleSelect(opt.value)}
                     className={cn(
-                      'flex w-full items-center px-3 py-2.5 text-left text-xs text-slate-700 hover:bg-slate-50 transition-colors',
-                      isSelected && 'bg-teal-50 text-teal-700 font-semibold hover:bg-teal-50',
+                      'flex w-full items-center px-3 py-2 text-left text-[var(--text-sm)] text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container-low)]',
+                      isSelected && 'bg-[var(--surface-container-low)] font-medium text-[var(--primary)]',
                     )}
                   >
                     {opt.label}
@@ -124,7 +124,7 @@ export function AppCombobox({
             )}
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

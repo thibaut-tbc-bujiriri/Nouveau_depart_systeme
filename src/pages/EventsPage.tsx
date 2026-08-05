@@ -1,5 +1,5 @@
 import { DataTable, EmptyState, LoadingState, PageHeader } from '@/components/common';
-import { AppButton, AppInput, AppSelect, FormFieldWrapper, SearchInput, AppCombobox } from '@/components/ui';
+import { ActionMenu, AppButton, AppInput, AppSelect, FormFieldWrapper, SearchInput, AppCombobox, useToast } from '@/components/ui';
 import { ConfirmDialog, Modal } from '@/components/ui/Modal';
 import { useAuth } from '@/hooks/useAuth';
 import { useBranches } from '@/hooks/useBranches';
@@ -34,6 +34,7 @@ const initialForm: EventFormState = {
 
 export function EventsPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const location = useLocation();
   const navigate = useNavigate();
   const { branches } = useBranches();
@@ -110,6 +111,7 @@ export function EventsPage() {
 
   const handleSubmit = async () => {
     if (!form.branchId || !form.title.trim()) {
+      toast.error('Veuillez remplir les champs obligatoires.');
       return;
     }
 
@@ -125,6 +127,7 @@ export function EventsPage() {
 
     const ok = editingId ? await updateEvent(editingId, payload) : await createEvent(payload);
     if (ok) {
+      toast.success(editingId ? 'Modification r?ussie.' : 'Enregistrement r?ussi.');
       setIsModalOpen(false);
       setEditingId(null);
     }
@@ -137,6 +140,7 @@ export function EventsPage() {
 
     const ok = await deleteEvent(deleteId);
     if (ok) {
+      toast.success('Suppression r?ussie.');
       setDeleteId(null);
     }
   };
@@ -196,23 +200,11 @@ export function EventsPage() {
               key: 'actions',
               label: 'Actions',
               render: (event) => {
-                const showActions = canUpdate || canDelete;
-                return showActions ? (
-                  <div className="flex gap-2">
-                    {canUpdate && (
-                      <AppButton size="sm" variant="secondary" onClick={() => openEditModal(event)}>
-                        Modifier
-                      </AppButton>
-                    )}
-                    {canDelete && (
-                      <AppButton size="sm" variant="danger" onClick={() => setDeleteId(event.id)}>
-                        Supprimer
-                      </AppButton>
-                    )}
-                  </div>
-                ) : (
-                  '-'
-                );
+                const items = [
+                  canUpdate ? { label: 'Modifier', onClick: () => openEditModal(event) } : null,
+                  canDelete ? { label: 'Supprimer', variant: 'danger' as const, onClick: () => setDeleteId(event.id) } : null,
+                ].filter(Boolean);
+                return <ActionMenu items={items} />;
               },
             },
           ]}
@@ -281,12 +273,6 @@ export function EventsPage() {
               options={departmentOptions}
             />
           </FormFieldWrapper>
-
-          {error ? (
-            <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-              {error}
-            </div>
-          ) : null}
 
           <div className="flex justify-end gap-2">
             <AppButton variant="secondary" onClick={() => setIsModalOpen(false)}>
