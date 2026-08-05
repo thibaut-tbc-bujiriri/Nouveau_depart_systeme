@@ -12,11 +12,11 @@ export function PageHeader({ title, description, actions, children, className }:
   return (
     <div className={cn("mb-5 space-y-3", className)}>
       <div className={cn('flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between')}>
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900 sm:text-3xl">{title}</h1>
+        <div className="min-w-0">
+          <h1 className="break-words text-xl font-semibold text-slate-900 sm:text-3xl">{title}</h1>
           {description ? <p className="mt-1 text-sm text-slate-600">{description}</p> : null}
         </div>
-        {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
+        {actions ? <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">{actions}</div> : null}
       </div>
       {children}
     </div>
@@ -41,7 +41,7 @@ export function StatCard({ label, value, helperText, trend = 'neutral' }: StatCa
     <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-3 h-1 w-12 rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500" />
       <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-slate-900">{value}</p>
+      <p className="mt-2 break-words text-2xl font-semibold text-slate-900">{value}</p>
       {helperText ? <p className={cn('mt-2 text-xs', trendColor[trend])}>{helperText}</p> : null}
     </article>
   );

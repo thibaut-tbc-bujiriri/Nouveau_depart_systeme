@@ -24,7 +24,7 @@ export function DataTable<T>({
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[680px] text-left text-sm">
+        <table className="w-full min-w-[560px] text-left text-sm sm:min-w-[680px]">
           <thead className="bg-slate-50/90">
             <tr>
               {columns.map((column) => (
@@ -51,7 +51,7 @@ export function DataTable<T>({
                   )}
                 >
                   {columns.map((column) => (
-                    <td key={column.key} className={cn('px-4 py-3 align-middle text-slate-700', column.className)}>
+                    <td key={column.key} className={cn('px-4 py-3 align-middle text-slate-700 [overflow-wrap:anywhere]', column.className)}>
                       {column.render(item)}
                     </td>
                   ))}

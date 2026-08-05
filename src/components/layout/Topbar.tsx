@@ -427,10 +427,10 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
   };
 
   return (
-    <header className="shrink-0 border-b border-slate-100 bg-white px-6 py-3.5 shadow-sm print:hidden">
-      <div className="flex items-center justify-between gap-4">
+    <header className="shrink-0 border-b border-slate-100 bg-white px-3 py-2.5 shadow-sm sm:px-6 sm:py-3.5 print:hidden">
+      <div className="flex min-w-0 items-center justify-between gap-2 sm:gap-4">
         {/* Left Search Bar */}
-        <div className="flex items-center gap-3 flex-1 lg:max-w-xs">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 lg:max-w-xs">
           <button
             onClick={onToggleMobileSidebar}
             className="grid size-10 place-items-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 lg:hidden"
@@ -465,7 +465,7 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
         </div>
 
         {/* Right User Controls */}
-        <div className="flex items-center gap-4">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-4">
           {/* Notification Bell with Dropdown */}
           <div className="relative" ref={notificationRef}>
             <button
@@ -482,11 +482,11 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
             </button>
 
             {isNotificationOpen && (
-              <div className="absolute right-0 mt-2.5 w-96 bg-white border border-slate-100 rounded-2xl shadow-xl z-50 overflow-hidden">
+              <div className="fixed left-3 right-3 top-16 z-50 max-h-[calc(100dvh-5rem)] overflow-hidden rounded-xl border border-slate-100 bg-white shadow-xl sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2.5 sm:w-96 sm:max-h-none sm:rounded-2xl">
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-slate-50">
+                <div className="flex flex-col gap-2 border-b border-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
                   <h3 className="text-sm font-bold text-slate-800">Notifications</h3>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     {unreadCount > 0 && (
                       <button
                         onClick={handleMarkAllAsRead}
@@ -509,7 +509,7 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
                 </div>
 
                 {/* Notification list */}
-                <div className="max-h-96 overflow-y-auto divide-y divide-slate-50">
+                <div className="max-h-[calc(100dvh-11rem)] overflow-y-auto divide-y divide-slate-50 sm:max-h-96">
                   {isLoadingNotifications && notifications.length === 0 ? (
                     <div className="p-6 text-center text-xs text-slate-400">
                       Chargement des notifications...
@@ -611,7 +611,7 @@ export function Topbar({ onToggleMobileSidebar }: TopbarProps) {
             </button>
 
             {isDropdownOpen && (
-              <div className="absolute right-0 mt-2.5 w-64 bg-white border border-slate-100 rounded-2xl shadow-xl p-2 z-50 animate-fadeIn space-y-1">
+              <div className="absolute right-0 z-50 mt-2.5 w-[min(16rem,calc(100vw-1.5rem))] space-y-1 rounded-xl border border-slate-100 bg-white p-2 shadow-xl animate-fadeIn sm:rounded-2xl">
                 {/* User Card inside dropdown */}
                 <div className="flex items-center gap-3 p-3 border-b border-slate-50 mb-1">
                   <Avatar name={user.fullName} avatarUrl={user.avatarUrl} size="md" />
